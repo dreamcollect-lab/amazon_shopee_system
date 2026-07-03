@@ -1068,6 +1068,8 @@ def build_summary_text(timestamp, process_summaries, total_duration):
     lines.append(f"- 全体処理時間: {total_duration:.2f}秒")
     lines.append(f"- LOG: {LOG_FILE.relative_to(BASE_DIR)}")
     lines.append(f"- SUMMARY: {SUMMARY_FILE.relative_to(BASE_DIR)}")
+    lines.append("- 判定順序: NG → DUPLICATE → DENY → ALLOW → SAFE → PRICE")
+    lines.append("- 確認優先順: SAFE → CHECK → OUT_DENY → OUT_NG → OUT_DUPLICATE → OUT_PRICE")
     lines.append("")
 
     if not process_summaries:
@@ -1081,7 +1083,9 @@ def build_summary_text(timestamp, process_summaries, total_duration):
     lines.append("1. SAFE CSV")
     lines.append("2. CHECK CSV")
     lines.append("3. OUT_DENY CSV")
-    lines.append("4. 必要に応じて OUT_NG / OUT_DUPLICATE / OUT_PRICE")
+    lines.append("4. OUT_NG CSV")
+    lines.append("5. OUT_DUPLICATE CSV")
+    lines.append("6. OUT_PRICE CSV")
     lines.append("")
 
     for item in process_summaries:
