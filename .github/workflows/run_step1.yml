@@ -1,0 +1,43 @@
+name: Run STEP1
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-step1:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run STEP1
+        run: python scripts/step1.py
+
+      - name: Show summary
+        if: always()
+        run: |
+          if [ -f summary.txt ]; then
+            cat summary.txt >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "summary.txt was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload STEP1 artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step1-results
+          path: |
+            output/
+            logs/
+            summary.txt
+          retention-days: 14
