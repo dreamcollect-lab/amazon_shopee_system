@@ -17,7 +17,10 @@ const state = {
   masterDirty: false,
   csvUploaded: false,
   artifactsLoaded: false,
-  currentView: "upload"
+  currentView: "upload",
+  workflowRunning: false,
+  runPollTimer: null,
+  workflowDispatchTime: null
 };
 
 const VIEW_TITLES = {
@@ -100,6 +103,56 @@ function updateCategoryRulesState() {
   stateEl.classList.add("ok");
 }
 
+function isStep1Ready() {
+  return state.csvUploaded && state.categoryRulesLoaded && state.categoryRulesSaved;
+}
+
+function isRunActive(run) {
+  return Boolean(run && run.status && run.status !== "completed");
+}
+
+function isRunAfterDispatch(run) {
+  if (!state.workflowDispatchTime || !run?.created_at) return true;
+  return new Date(run.created_at).getTime() >= state.workflowDispatchTime - 30000;
+}
+
+function translateRunStatus(status, conclusion = null) {
+  if (status === "completed" && conclusion === "success") return "成功";
+  if (status === "completed" && conclusion === "failure") return "失敗";
+  if (status === "completed" && conclusion === "cancelled") return "キャンセル";
+  if (status === "completed" && conclusion === "timed_out") return "タイムアウト";
+  const labels = {
+    queued: "待機中",
+    requested: "要求済み",
+    waiting: "待機中",
+    pending: "待機中",
+    in_progress: "実行中",
+    completed: "完了"
+  };
+  return labels[status] || status || "-";
+}
+
+function translateRunConclusion(conclusion) {
+  if (!conclusion) return "まだ完了していません";
+  const labels = {
+    success: "成功",
+    failure: "失敗",
+    cancelled: "キャンセル",
+    skipped: "スキップ",
+    timed_out: "タイムアウト",
+    action_required: "対応が必要",
+    neutral: "中立"
+  };
+  return labels[conclusion] || conclusion;
+}
+
+function updateRunNotice() {
+  const ready = isStep1Ready();
+  const running = state.workflowRunning || isRunActive(state.latestRun);
+  $("runPreflightNotice")?.classList.toggle("hidden", ready);
+  $("runRunningNotice")?.classList.toggle("hidden", !running);
+}
+
 function setActiveView(view) {
   state.currentView = view;
   document.querySelectorAll(".work-panel").forEach((panel) => {
@@ -138,6 +191,7 @@ function updateWizard() {
     ? (state.categoryRulesSaved ? "確認・保存済み" : "未保存")
     : "未取得";
   $("saveCsvState").textContent = state.csvUploaded ? "アップロード済み" : "未アップロード";
+  updateRunNotice();
 }
 
 function saveToken() {
@@ -193,6 +247,7 @@ function parseAmazonFilename(fileName) {
 function setSelectedFile(file) {
   state.selectedFile = file;
   state.csvUploaded = false;
+  state.workflowRunning = false;
   const parsed = parseAmazonFilename(file.name);
   $("fileState").textContent = "選択済み";
   $("fileState").classList.add("ok");
@@ -257,6 +312,7 @@ async function uploadCsv() {
   });
   state.csvUploaded = true;
   state.artifactsLoaded = false;
+  state.workflowRunning = false;
   $("fileState").textContent = "アップロード済み";
   $("fileState").classList.add("ok");
   updateWizard();
@@ -273,6 +329,7 @@ async function loadMaster() {
   $("masterEditor").value = text;
   state.masterDirty = false;
   state.artifactsLoaded = false;
+  state.workflowRunning = false;
   if (state.selectedMaster === "category_rules.csv") {
     state.categoryRulesLoaded = true;
     state.categoryRulesSaved = true;
@@ -310,6 +367,7 @@ async function saveMaster() {
   });
   state.masterSha = result?.content?.sha || null;
   state.masterDirty = false;
+  state.workflowRunning = false;
   if (state.selectedMaster === "category_rules.csv") {
     state.categoryRulesLoaded = true;
     state.categoryRulesSaved = true;
@@ -341,22 +399,45 @@ async function runWorkflow() {
   });
   log("STEP1 workflow_dispatchを送信しました。数秒後に最新Runを取得してください。");
   state.artifactsLoaded = false;
+  state.workflowRunning = true;
+  state.workflowDispatchTime = Date.now();
   setActiveView("run");
+  startRunPolling();
   setTimeout(fetchLatestRun, 3000);
+}
+
+function startRunPolling() {
+  stopRunPolling();
+  state.runPollTimer = setInterval(() => {
+    guard(() => fetchLatestRun({silent: true}));
+  }, 7000);
+}
+
+function stopRunPolling() {
+  if (!state.runPollTimer) return;
+  clearInterval(state.runPollTimer);
+  state.runPollTimer = null;
 }
 
 function renderRun(run) {
   state.latestRun = run;
   $("runIdText").textContent = run?.id || "-";
-  $("runStatusText").textContent = run?.status || "-";
-  $("runConclusionText").textContent = run?.conclusion || "-";
+  $("runStatusText").textContent = translateRunStatus(run?.status, run?.conclusion);
+  $("runConclusionText").textContent = translateRunConclusion(run?.conclusion);
   $("runCreatedText").textContent = run?.created_at ? new Date(run.created_at).toLocaleString("ja-JP") : "-";
   $("runLink").href = run?.html_url || "#";
+  if (run?.status === "completed" && isRunAfterDispatch(run)) {
+    state.workflowRunning = false;
+    state.workflowDispatchTime = null;
+    stopRunPolling();
+  } else if (run) {
+    state.workflowRunning = true;
+  }
   updateWizard();
 }
 
-async function fetchLatestRun() {
-  log("最新Workflow Runを取得中です。");
+async function fetchLatestRun(options = {}) {
+  if (!options.silent) log("最新Workflow Runを取得中です。");
   const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=1`);
   const run = data.workflow_runs?.[0];
   if (!run) {
@@ -365,7 +446,7 @@ async function fetchLatestRun() {
     return;
   }
   renderRun(run);
-  log(`最新Runを取得しました: ${run.id} / ${run.status} / ${run.conclusion || "-"}`);
+  log(`最新Runを取得しました: ${run.id} / ${translateRunStatus(run.status, run.conclusion)} / ${translateRunConclusion(run.conclusion)}`);
 }
 
 function artifactRank(name) {
@@ -462,7 +543,9 @@ function bindEvents() {
     state.masterDirty = true;
     if (state.selectedMaster === "category_rules.csv") {
       state.categoryRulesSaved = false;
+      state.workflowRunning = false;
       updateCategoryRulesState();
+      updateWizard();
     }
   });
 

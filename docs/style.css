@@ -260,13 +260,14 @@ p {
 
 .work-area {
   min-width: 0;
-  overflow-y: auto;
+  overflow: auto;
   padding: 26px 32px;
 }
 
 .work-heading,
 .work-panel {
   max-width: 1180px;
+  min-width: 900px;
 }
 
 .work-heading {
@@ -337,6 +338,16 @@ p {
   border: 1px solid #f4d08a;
   background: var(--warn-bg);
   color: var(--warn);
+}
+
+.run-notice {
+  border: 1px solid #b9cbe0;
+  background: #f2f7fc;
+  color: var(--accent-dark);
+}
+
+.hidden {
+  display: none;
 }
 
 .drop-zone {
@@ -526,51 +537,4 @@ p {
   background: var(--console);
   color: #e5e7eb;
   white-space: pre-wrap;
-}
-
-@media (max-width: 900px) {
-  body {
-    overflow: auto;
-  }
-
-  .app-shell {
-    height: auto;
-    min-height: 100vh;
-    grid-template-columns: 1fr;
-  }
-
-  .app-sidebar {
-    position: sticky;
-    z-index: 10;
-    top: 0;
-    height: auto;
-    max-height: 70vh;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .main-column {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-  }
-
-  .work-area {
-    overflow: visible;
-    padding: 18px 16px;
-  }
-
-  .connection-actions,
-  .info-grid,
-  .status-list,
-  .run-card,
-  .artifact-priority {
-    grid-template-columns: 1fr;
-  }
-
-  .master-toolbar,
-  .work-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }

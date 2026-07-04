@@ -134,8 +134,11 @@
         </section>
 
         <section id="run" class="work-panel" data-view="run">
-          <div class="notice strong-notice">
+          <div id="runPreflightNotice" class="notice strong-notice">
             STEP1実行前に、Amazon CSVをアップロードし、対象カテゴリのAllow/Denyルールをcategory_rules.csvへ追加してください。
+          </div>
+          <div id="runRunningNotice" class="notice run-notice hidden">
+            STEP1を実行中です。完了後に最新Run取得を押してください。
           </div>
           <div class="actions">
             <button id="runWorkflowBtn" type="button">Run STEP1</button>
