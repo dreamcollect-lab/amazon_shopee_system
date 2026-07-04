@@ -5,7 +5,8 @@
 - This folder is the development and operation source of truth going forward.
 - `scripts/step1.py` runs STEP1.
 - Input masters are stored under `input/`.
-- Amazon CSV files are placed under `input/working/`.
+- Amazon CSV files are placed under `input/working/` as temporary input data.
+- Amazon CSV files under `input/working/*.csv` are ignored by Git; only `input/working/.gitkeep` is tracked.
 - Outputs are generated under `output/` at runtime and are not tracked by Git.
 - Logs are generated under `logs/` at runtime and are not tracked by Git.
 - `summary.txt` is generated at runtime and is not tracked by Git.
@@ -17,6 +18,13 @@
 - `input/category_rules.csv`: category Allow/Deny master.
 - `input/ng_master.csv`: NG master, long-term retained, updated only when needed.
 - `input/shopee_existing_asin.csv`: Shopee duplicate ASIN master, long-term retained, updated only when needed. It is treated close to an NG master and is not an auto-delete or monthly cleanup target.
+
+## Git Tracking Policy
+
+- Track code, master CSVs, workflow, and DDOS.
+- Do not track Amazon CSV input files.
+- Keep `input/working/.gitkeep` so the input folder exists in the repository.
+- Future Web UI upload should treat Amazon CSVs as temporary files.
 
 ## Judgment Order
 
@@ -72,3 +80,25 @@ GitHub
   -> Fix category_rules.csv / ng_master.csv / shopee_existing_asin.csv when needed
   -> Re-run STEP1
 ```
+
+## Phase3 Web UI Architecture Candidate
+
+First candidate:
+
+```text
+GitHub Pages Web UI
+  -> GitHub API
+  -> GitHub Actions workflow_dispatch
+  -> scripts/step1.py
+  -> Artifacts
+  -> Web UI result display and CSV download
+```
+
+Design notes:
+
+- GitHub Pages hosts only the Web UI.
+- Python STEP1 remains in GitHub Actions.
+- GitHub API is required for master CSV read/update, workflow dispatch, workflow run polling, and artifact download.
+- Amazon CSV must remain temporary input data and must not be committed into Git history.
+- GitHub Pages has no backend secret store, so PAT handling in the browser is the largest risk.
+- Streamlit Community Cloud is the fallback option because it can run Python UI code and has a server-side environment/secrets model.

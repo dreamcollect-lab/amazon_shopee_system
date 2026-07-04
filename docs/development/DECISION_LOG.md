@@ -30,4 +30,14 @@
 - Split GitHub Actions artifacts into priority CSV artifacts and `99_ALL_RESULTS` so SAFE / CHECK / OUT_DENY are easy to find.
 - Keep summary concise: priority files appear near the top, lower-priority files appear below, and the full output file list is collapsed.
 - Treat GitHub Actions total time and STEP1 internal processing time as separate measurements.
+- Do not track Amazon CSV input data in Git. `input/working/*.csv` is ignored, while `input/working/.gitkeep` remains tracked.
+- If an Amazon CSV has already been committed, remove it from tracking with `git rm --cached <path>` and commit the removal. Full history purge is not required in Phase1.
+- Web UI future state: Amazon CSV files are temporary uploads, not repository files.
+- Phase3-1 creates only the Web UI basic design; implementation is not started.
+- Use GitHub Pages + GitHub API + GitHub Actions as the first candidate architecture.
+- Keep STEP1 execution in GitHub Actions because GitHub Pages is static and cannot run Python.
+- Avoid new paid hosting contracts at Phase3 start.
+- Do not implement OpenAI API, AI auto-review, customer public access, paid hosting, or production cutover in Phase3-1.
+- Treat browser-side GitHub token handling as the largest technical risk for the GitHub Pages approach.
+- Use Streamlit Community Cloud as the main fallback candidate if GitHub Pages cannot safely support authentication and temporary CSV upload.
 - Remove root-level NG master helper/intermediate files from the STEP1-only GitHub development version after confirming STEP1 does not reference them.

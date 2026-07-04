@@ -14,7 +14,7 @@ STEP1は単なるCSV出力システムではありません。Amazon商品を自
 - `docs/`: システムマップとDDOSを置くフォルダです。
 - `docs/development/`: 引き継ぎ、現在状態、判断ログ、構成ログを置くDDOSフォルダです。
 - `input/`: STEP1の判定マスタCSVを置くフォルダです。
-- `input/working/`: Amazon CSV投入先です。空フォルダ維持のため `.gitkeep` を残します。
+- `input/working/`: Amazon CSV投入先です。Amazon CSV本体は一時入力データとして扱い、Git管理しません。空フォルダ維持のため `.gitkeep` のみGit管理します。
 - `scripts/`: STEP1本体とバックアップを置くフォルダです。
 
 実行時生成フォルダはGit管理しません。
@@ -29,7 +29,7 @@ STEP1は単なるCSV出力システムではありません。Amazon商品を自
 - `input/category_rules.csv`: category判定の正本です。Allow/Deny本体として使います。
 - `input/ng_master.csv`: NG判定の正本です。更新頻度が低いため長期保存します。
 - `input/shopee_existing_asin.csv`: Shopee既存ASINのDUPLICATE判定マスターです。NGマスターに近い扱いで、更新頻度は低く、長期保存対象です。自動削除や月次整理削除の対象ではありません。
-- `input/working/*.csv`: 処理対象のAmazon CSVです。ファイル名からcategoryと価格条件を取得します。
+- `input/working/*.csv`: 処理対象のAmazon CSVです。ファイル名からcategoryと価格条件を取得します。Git履歴には残さない一時入力データです。
 
 `category_rules.csv` の列は現状維持です。
 
@@ -40,6 +40,8 @@ category,rule_type,value,match_mode,memo
 更新日、更新者、理由の列は追加しません。履歴管理はGitHub側で行います。`category_rules.csv` は毎日更新し、約1か月に1回整理します。整理前ファイルの保管は不要で、現在の `category_rules.csv` だけを正本とします。
 
 `ng_master.csv` と `shopee_existing_asin.csv` は更新頻度が低く、毎回更新必須ではありません。必要時のみ更新し、長期保存するGitHub正本として扱います。
+
+Amazon CSVはGitHubの正本管理対象ではありません。`input/working/` は投入先フォルダですが、`input/working/*.csv` は `.gitignore` で除外し、`input/working/.gitkeep` のみ残します。Web UI完成後は、Amazon CSVはWeb UIから一時アップロードする想定です。
 
 ## 3. STEP1の流れ
 
@@ -311,7 +313,17 @@ Artifactsの位置づけ:
 - `ng_master.csv` は必要時のみ更新済み。
 - `shopee_existing_asin.csv` は必要時のみ更新済み。
 
-## 11. Git状態
+## 11. 既存Amazon CSVをGit管理から外す手順
+
+既にGitHubへ入ってしまったAmazon CSVがある場合は、Git管理から外します。ローカルファイルを残したまま追跡だけ外す場合:
+
+```powershell
+git rm --cached input/working/dripkettle_20260628.csv
+```
+
+その後、削除コミットを作成すればGitHub上の最新状態からは削除されます。履歴からの完全削除まではPhase1では不要です。
+
+## 12. Git状態
 
 - ブランチ名は `main` です。
 - GitHub remoteは既存設定があります。今回の作業ではremote追加・変更は行っていません。

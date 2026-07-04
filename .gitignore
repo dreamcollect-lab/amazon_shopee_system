@@ -7,6 +7,8 @@ logs/
 processed/
 summary.txt
 all_results.zip
+input/working/*.csv
+!input/working/.gitkeep
 .env
 .DS_Store
 Thumbs.db

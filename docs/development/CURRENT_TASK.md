@@ -2,7 +2,7 @@
 
 ## Active Task
 
-Prepare the local GitHub development folder for GitHub connection.
+Prepare the local GitHub development folder and Phase3 Web UI design.
 
 ## Completed In This Task
 
@@ -25,12 +25,19 @@ Prepare the local GitHub development folder for GitHub connection.
 - Improved GitHub Actions result UI with priority summary display, collapsible output list, and split artifacts.
 - Documented that AI comments are not implemented in this phase and AI review remains a future phase.
 - Documented the difference between GitHub Actions total time and STEP1 internal processing time.
+- Changed Amazon CSV operation so `input/working/*.csv` is temporary input data and not tracked by Git.
+- Removed `input/working/dripkettle_20260628.csv` from Git tracking with `git rm --cached` while keeping the local file.
+- Created Phase3 Web UI basic design document.
+- Evaluated GitHub Pages, Streamlit Community Cloud, and paid hosting at design level.
+- Recorded GitHub Pages as the first candidate and token handling as the largest technical risk.
 
 ## Next Task
 
 - Decide which files should be tracked in the first Git commit.
 - Confirm pre-run requirements before running STEP1 from GitHub Actions.
 - Verify the next GitHub Actions run shows split artifacts and the updated Step Summary.
+- Commit the `.gitignore` update and the staged removal of tracked Amazon CSV input data.
+- Next Phase3 task is GitHub API verification before implementation.
 - Review the existing GitHub remote before any future push.
 - Commit the Phase1 final specification changes.
 - Push only after user confirmation.
