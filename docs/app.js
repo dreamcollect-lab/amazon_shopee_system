@@ -38,7 +38,8 @@ const VIEW_TITLES = {
   save: "マスター保存",
   run: "STEP1実行",
   review: "Review",
-  improve: "Allow / Deny 判定支援"
+  improve: "Rule改善・再実行",
+  "allow-deny-support": "Allow / Deny 判定支援"
 };
 
 const INITIAL_RULE_PROMPT = `==============================

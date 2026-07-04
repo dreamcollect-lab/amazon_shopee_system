@@ -64,14 +64,14 @@
         </button>
       </nav>
 
-      <div class="sidebar-support" aria-label="Rule改善 補助メニュー">
-        <p class="sidebar-support-title">Rule改善補助</p>
+      <div class="sidebar-support" aria-label="Allow Deny 設定補助メニュー">
+        <p class="sidebar-support-title">Allow/Deny設定補助</p>
         <div class="mini-tabs" aria-label="Allow Deny 判定支援の種類">
           <span>① 初回</span>
           <span>② 修正</span>
           <span>③ 例</span>
         </div>
-        <button type="button" class="sidebar-support-button flow-jump" data-view="improve">Allow/Deny判定支援</button>
+        <button type="button" class="sidebar-support-button flow-jump" data-view="allow-deny-support">Allow/Deny判定支援</button>
       </div>
 
       <div class="sidebar-footer">
@@ -197,8 +197,37 @@
 
         <section class="work-panel" data-view="improve">
           <div class="notice">
+            <strong>Rule改善・再実行</strong>
+            SAFE / CHECK / OUT_DENYの確認結果をもとに、次の作業を判断します。
+          </div>
+          <div class="review-loop">
+            <div>SAFE / CHECK / OUT_DENYを確認した内容を記録・整理する</div>
+            <div>必要ならcategory_rules.csvを修正して、STEP1を再実行する</div>
+            <div>同じカテゴリーの作業が完了したら、今回のCSVをクリアして次のカテゴリーへ進む</div>
+          </div>
+          <div class="actions">
+            <button type="button" class="flow-jump" data-view="rules">Rule編集へ戻る</button>
+            <button type="button" class="secondary flow-jump" data-view="run">STEP1を再実行</button>
+          </div>
+          <div class="notice next-category">
+            <strong>別カテゴリー作業へ進む場合</strong>
+            同じカテゴリーのAllow/Deny調整が完了し、別CSVへ切り替える時だけ押してください。PATとマスターCSVは削除しません。
+          </div>
+          <div class="review-loop">
+            <div>今回のCSVをクリア</div>
+            <div>新しいAmazon CSVをアップロード</div>
+            <div>対象カテゴリーに合わせてAllow/Denyを調整</div>
+            <div>STEP1実行</div>
+          </div>
+          <div class="actions">
+            <button id="deleteCsvBtn" type="button" class="secondary danger-action">今回のCSVをクリアして次のカテゴリーへ</button>
+          </div>
+        </section>
+
+        <section class="work-panel" data-view="allow-deny-support">
+          <div class="notice">
             <strong>Allow / Deny 判定支援</strong>
-            事務担当者がSAFE / CHECK / OUT_DENYを確認した後、ChatGPTを利用してAllow/Denyを作成・改善するための画面です。
+            外部AIで作業者がAllow/Denyを作成・改善するためのプロンプト補助です。STEP1の業務フローとは別の補助機能です。
           </div>
 
           <section class="support-card">
@@ -266,8 +295,7 @@ dripkettle,deny,セット,contains,</pre>
 
           <div class="actions">
             <button type="button" class="flow-jump" data-view="rules">Rule編集へ戻る</button>
-            <button type="button" class="secondary flow-jump" data-view="run">STEP1を再実行</button>
-            <button id="deleteCsvBtn" type="button" class="secondary danger-action">今回のCSVをクリアして次のカテゴリーへ</button>
+            <button type="button" class="secondary flow-jump" data-view="improve">⑥ Rule改善へ戻る</button>
           </div>
         </section>
       </section>
