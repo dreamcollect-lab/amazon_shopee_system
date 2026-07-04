@@ -3,7 +3,8 @@ const CONFIG = {
   repo: "amazon_shopee_system",
   branch: "main",
   workflow: "run_step1.yml",
-  tokenKey: "amazonShopeeGithubPat"
+  tokenKey: "amazonShopeeGithubPat",
+  lastUpdated: "2026/07/05"
 };
 
 const state = {
@@ -1181,6 +1182,7 @@ function bindEvents() {
   $("repoText").textContent = CONFIG.repo;
   $("branchText").textContent = CONFIG.branch;
   $("workflowText").textContent = CONFIG.workflow;
+  $("lastUpdatedText").textContent = CONFIG.lastUpdated;
 
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
