@@ -8,58 +8,50 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="app-header">
-      <div>
-        <p class="eyebrow">Amazon→Shopee OS / Phase7</p>
-        <h1>Amazon→Shopee 自動選別システム</h1>
+    <aside class="app-sidebar">
+      <div class="brand-block">
+        <p class="eyebrow">Amazon→Shopee OS</p>
+        <h1>自動選別システム</h1>
       </div>
-      <div class="repo-summary">
-        <span>Repository</span>
-        <strong>dreamcollect-lab/amazon_shopee_system</strong>
-        <span>Branch: main / Workflow: run_step1.yml</span>
-      </div>
-    </header>
 
-    <section class="connection-bar">
-      <div class="connection-field token-field">
-        <label for="tokenInput">GitHub PAT</label>
-        <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_...">
-      </div>
-      <div class="connection-actions">
-        <button id="saveTokenBtn" type="button">PAT保存</button>
-        <button id="loadTokenBtn" type="button" class="secondary">読込</button>
-        <button id="clearTokenBtn" type="button" class="secondary">削除</button>
-        <span id="tokenState" class="state-pill">未保存</span>
-      </div>
-      <div class="connection-meta">
-        <div><span>Owner</span><strong id="ownerText"></strong></div>
-        <div><span>Repo</span><strong id="repoText"></strong></div>
-        <div><span>Branch</span><strong id="branchText"></strong></div>
-        <div><span>Workflow</span><strong id="workflowText"></strong></div>
-      </div>
-    </section>
+      <details class="settings-panel">
+        <summary>設定</summary>
+        <div class="settings-body">
+          <label for="tokenInput">GitHub PAT</label>
+          <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_...">
+          <div class="connection-actions">
+            <button id="saveTokenBtn" type="button">PATを保存</button>
+            <button id="clearTokenBtn" type="button" class="secondary">PATを削除</button>
+          </div>
+          <span id="tokenState" class="state-pill">未保存</span>
+          <div class="connection-meta">
+            <div><span>Repository</span><strong id="ownerText"></strong>/<strong id="repoText"></strong></div>
+            <div><span>Branch</span><strong id="branchText"></strong></div>
+            <div><span>Workflow</span><strong id="workflowText"></strong></div>
+          </div>
+        </div>
+      </details>
 
-    <main class="workspace">
-      <aside class="flow-panel">
+      <nav class="flow-panel" aria-label="STEP1 業務フロー">
         <div class="flow-title">
-          <span>業務フロー</span>
-          <strong>STEP1</strong>
+          <span>STEP1</span>
+          <strong>業務フロー</strong>
         </div>
         <button id="stepUpload" class="flow-item active" type="button" data-view="upload">
           <span class="flow-mark">▶</span>
-          <span>① Amazon CSVアップロード</span>
+          <span>① Amazon CSV</span>
         </button>
         <button id="stepRules" class="flow-item" type="button" data-view="rules">
           <span class="flow-mark">□</span>
-          <span>② category_rules.csv編集</span>
+          <span>② Rule編集</span>
         </button>
         <button id="stepSave" class="flow-item" type="button" data-view="save">
           <span class="flow-mark">□</span>
-          <span>③ マスター保存</span>
+          <span>③ 保存</span>
         </button>
         <button id="stepRun" class="flow-item" type="button" data-view="run">
           <span class="flow-mark">□</span>
-          <span>④ STEP1実行</span>
+          <span>④ STEP1</span>
         </button>
         <button id="stepResults" class="flow-item" type="button" data-view="review">
           <span class="flow-mark">□</span>
@@ -67,10 +59,12 @@
         </button>
         <button id="stepImprove" class="flow-item" type="button" data-view="improve">
           <span class="flow-mark">□</span>
-          <span>⑥ Rule改善・再実行</span>
+          <span>⑥ Rule改善</span>
         </button>
-      </aside>
+      </nav>
+    </aside>
 
+    <main class="main-column">
       <section class="work-area">
         <div class="work-heading">
           <div>
@@ -191,15 +185,15 @@
           </div>
         </section>
       </section>
-    </main>
 
-    <section class="status-console">
-      <div class="console-header">
-        <h2>ステータス・実行結果・エラー</h2>
-        <button id="clearLogBtn" type="button" class="secondary">ログクリア</button>
-      </div>
-      <pre id="messageLog"></pre>
-    </section>
+      <section class="status-console">
+        <div class="console-header">
+          <h2>ログ</h2>
+          <button id="clearLogBtn" type="button" class="secondary">ログクリア</button>
+        </div>
+        <pre id="messageLog"></pre>
+      </section>
+    </main>
   </div>
 
   <script src="./app.js"></script>

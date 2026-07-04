@@ -80,6 +80,8 @@ function updateTokenState() {
   const saved = Boolean(localStorage.getItem(CONFIG.tokenKey));
   $("tokenState").textContent = saved ? "保存済み" : "未保存";
   $("tokenState").classList.toggle("ok", saved);
+  $("tokenInput").classList.toggle("needs-input", !saved);
+  document.querySelector(".settings-panel")?.classList.toggle("needs-token", !saved);
 }
 
 function updateCategoryRulesState() {
@@ -155,7 +157,7 @@ function loadToken() {
   $("tokenInput").value = token;
   state.token = token;
   updateTokenState();
-  log(token ? "保存済みPATを読み込みました。" : "保存済みPATはありません。");
+  log(token ? "保存済みPATを自動読込しました。" : "PATは未保存です。初回のみ貼り付けてPATを保存してください。");
 }
 
 function clearToken() {
@@ -441,7 +443,6 @@ function bindEvents() {
   $("workflowText").textContent = CONFIG.workflow;
 
   $("saveTokenBtn").addEventListener("click", saveToken);
-  $("loadTokenBtn").addEventListener("click", loadToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("uploadCsvBtn").addEventListener("click", () => guard(uploadCsv));
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
