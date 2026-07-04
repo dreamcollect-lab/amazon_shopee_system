@@ -9,6 +9,7 @@ const CONFIG = {
 const state = {
   token: "",
   selectedFile: null,
+  currentAmazonPath: null,
   selectedMaster: "category_rules.csv",
   masterSha: null,
   latestRun: null,
@@ -20,7 +21,8 @@ const state = {
   currentView: "upload",
   workflowRunning: false,
   runPollTimer: null,
-  workflowDispatchTime: null
+  workflowDispatchTime: null,
+  reviewAutoOpened: false
 };
 
 const VIEW_TITLES = {
@@ -117,8 +119,8 @@ function isRunAfterDispatch(run) {
 }
 
 function translateRunStatus(status, conclusion = null) {
-  if (status === "completed" && conclusion === "success") return "成功";
-  if (status === "completed" && conclusion === "failure") return "失敗";
+  if (status === "completed" && conclusion === "success") return "STEP1成功";
+  if (status === "completed" && conclusion === "failure") return "STEP1失敗";
   if (status === "completed" && conclusion === "cancelled") return "キャンセル";
   if (status === "completed" && conclusion === "timed_out") return "タイムアウト";
   const labels = {
@@ -126,7 +128,7 @@ function translateRunStatus(status, conclusion = null) {
     requested: "要求済み",
     waiting: "待機中",
     pending: "待機中",
-    in_progress: "実行中",
+    in_progress: "STEP1実行中",
     completed: "完了"
   };
   return labels[status] || status || "-";
@@ -149,7 +151,7 @@ function translateRunConclusion(conclusion) {
 function updateRunNotice() {
   const ready = isStep1Ready();
   const running = state.workflowRunning || isRunActive(state.latestRun);
-  $("runPreflightNotice")?.classList.toggle("hidden", ready);
+  $("runPreflightNotice")?.classList.toggle("hidden", ready || running);
   $("runRunningNotice")?.classList.toggle("hidden", !running);
 }
 
@@ -247,7 +249,9 @@ function parseAmazonFilename(fileName) {
 function setSelectedFile(file) {
   state.selectedFile = file;
   state.csvUploaded = false;
+  state.currentAmazonPath = null;
   state.workflowRunning = false;
+  resetRunAndArtifactsState();
   const parsed = parseAmazonFilename(file.name);
   $("fileState").textContent = "選択済み";
   $("fileState").classList.add("ok");
@@ -311,6 +315,7 @@ async function uploadCsv() {
     body: JSON.stringify(body)
   });
   state.csvUploaded = true;
+  state.currentAmazonPath = path;
   state.artifactsLoaded = false;
   state.workflowRunning = false;
   $("fileState").textContent = "アップロード済み";
@@ -318,6 +323,72 @@ async function uploadCsv() {
   updateWizard();
   log(`Amazon CSVをアップロードしました: ${path}`);
   setActiveView("rules");
+}
+
+function resetAmazonCsvState() {
+  state.selectedFile = null;
+  state.currentAmazonPath = null;
+  state.csvUploaded = false;
+  $("csvInput").value = "";
+  $("fileState").textContent = "未選択";
+  $("fileState").classList.remove("ok");
+  $("fileNameText").textContent = "-";
+  $("categoryText").textContent = "-";
+  $("priceText").textContent = "-";
+  $("fileSizeText").textContent = "-";
+}
+
+function resetRunAndArtifactsState() {
+  state.latestRun = null;
+  state.artifactsLoaded = false;
+  state.workflowRunning = false;
+  state.workflowDispatchTime = null;
+  state.reviewAutoOpened = false;
+  stopRunPolling();
+  $("runIdText").textContent = "-";
+  $("runStatusText").textContent = "-";
+  $("runConclusionText").textContent = "-";
+  $("runCreatedText").textContent = "-";
+  $("runLink").href = "#";
+  $("artifactList").innerHTML = "";
+}
+
+function resetWork() {
+  resetAmazonCsvState();
+  resetRunAndArtifactsState();
+  updateWizard();
+  setActiveView("upload");
+  log("今回の作業をリセットしました。PATとマスターCSVの内容は保持しています。");
+}
+
+async function deleteCurrentCsv() {
+  const path = state.currentAmazonPath || (state.selectedFile ? `input/working/${state.selectedFile.name}` : "");
+  if (!path) {
+    log("削除対象のAmazon CSVがありません。", "error");
+    return;
+  }
+  const sha = await getContentSha(path);
+  if (!sha) {
+    log(`GitHub上に削除対象CSVが見つかりません: ${path}`, "error");
+    resetAmazonCsvState();
+    resetRunAndArtifactsState();
+    updateWizard();
+    return;
+  }
+  await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
+    method: "DELETE",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      message: `Delete Amazon CSV ${path}`,
+      sha,
+      branch: CONFIG.branch
+    })
+  });
+  resetAmazonCsvState();
+  resetRunAndArtifactsState();
+  updateWizard();
+  setActiveView("upload");
+  log(`Amazon CSVを削除しました: ${path}`);
 }
 
 async function loadMaster() {
@@ -401,6 +472,7 @@ async function runWorkflow() {
   state.artifactsLoaded = false;
   state.workflowRunning = true;
   state.workflowDispatchTime = Date.now();
+  state.reviewAutoOpened = false;
   setActiveView("run");
   startRunPolling();
   setTimeout(fetchLatestRun, 3000);
@@ -430,6 +502,11 @@ function renderRun(run) {
     state.workflowRunning = false;
     state.workflowDispatchTime = null;
     stopRunPolling();
+    if (run.conclusion === "success" && !state.reviewAutoOpened) {
+      state.reviewAutoOpened = true;
+      setActiveView("review");
+      log("STEP1成功を確認しました。Reviewへ移動しました。Artifacts取得を押してください。");
+    }
   } else if (run) {
     state.workflowRunning = true;
   }
@@ -526,6 +603,8 @@ function bindEvents() {
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("uploadCsvBtn").addEventListener("click", () => guard(uploadCsv));
+  $("deleteCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
+  $("resetWorkBtn").addEventListener("click", resetWork);
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
   $("saveMasterBtn").addEventListener("click", () => guard(saveMaster));
   $("saveMasterBtnMirror").addEventListener("click", () => guard(saveMaster));

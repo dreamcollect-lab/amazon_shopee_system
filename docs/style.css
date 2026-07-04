@@ -61,6 +61,20 @@ button.secondary:hover {
   background: #d8e1ec;
 }
 
+button.danger-action {
+  color: #8a1f17;
+}
+
+button.danger-action:hover {
+  background: #f8d7d4;
+}
+
+button.primary-action {
+  box-shadow: 0 0 0 4px rgba(19, 95, 155, 0.14);
+  font-size: 16px;
+  padding: 12px 18px;
+}
+
 input,
 textarea {
   width: 100%;
@@ -282,6 +296,12 @@ p {
   background: var(--panel);
 }
 
+.heading-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .work-heading h2 {
   font-size: 24px;
 }
@@ -317,7 +337,8 @@ p {
 }
 
 .notice,
-.warning {
+.warning,
+.hint {
   margin-bottom: 16px;
   padding: 13px 14px;
   border-radius: 6px;
@@ -338,6 +359,12 @@ p {
   border: 1px solid #f4d08a;
   background: var(--warn-bg);
   color: var(--warn);
+}
+
+.hint {
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--muted);
 }
 
 .run-notice {
