@@ -37,8 +37,176 @@ const VIEW_TITLES = {
   save: "マスター保存",
   run: "STEP1実行",
   review: "Review",
-  improve: "Rule改善・再実行"
+  improve: "Allow / Deny 判定支援"
 };
+
+const INITIAL_RULE_PROMPT = `==============================
+Amazon→Shopee STEP1
+Allow/Deny作成プロンプト Ver1.1
+==============================
+
+目的：
+Amazon CSVの商品一覧を見て、指定カテゴリの商品だけがSAFEに入るように、category_rules.csv用のAllow/Denyを作成してください。
+
+前提：
+SAFEへの異カテゴリ混在ゼロを最優先にしてください。
+SAFE件数を増やすことより、SAFEの純度を優先してください。
+迷う商品はSAFEではなくCHECKに残る設計で構いません。
+
+カテゴリー名：
+ここに入力
+
+抽出対象：
+ここに入力
+
+除外条件：
+ここに入力
+
+例：
+・セット商品は除外
+・交換部品は除外
+・ケース・カバーは除外
+・単体商品のみ
+・電動のみ
+・非電動のみ
+・純正品のみ
+・互換品は除外
+
+追加条件：
+ここに入力
+
+例：
+・商品名に「○○」と記載があるもののみ
+・容量指定はしない
+・価格条件はファイル名で判定するためAllow/Denyへ入れない
+
+判定方針：
+
+Amazon CSVの商品名・説明・カテゴリ情報を確認してください。
+
+対象商品がSAFEになるAllowを作成してください。
+
+同時に、
+
+アクセサリー
+
+ケース
+
+カバー
+
+交換部品
+
+補修部品
+
+セット違い
+
+用途違い
+
+などSAFEへ混在する可能性があるものはDenyで除外してください。
+
+ただし、
+
+サイズ
+
+容量
+
+型番
+
+焦点距離
+
+など本来SAFEまで除外する可能性がある単語だけのDenyは禁止します。
+
+出力形式：
+
+空白行なし
+
+CSV形式
+
+category,allow,xxxxx,contains,
+category,deny,xxxxx,contains,
+
+重要ルール：
+
+SAFE混在ゼロを最優先
+
+価格条件は入れない
+
+カテゴリー名は指定されたものを使う
+
+最後に
+
+事実：
+推定：
+
+を短く記載してください。`;
+
+const REVISION_RULE_PROMPT = `==============================
+STEP1実行後
+Allow/Deny修正プロンプト Ver1.1
+==============================
+
+目的：
+STEP1実行後のSAFE / CHECK / OUT_DENY CSVを確認し、
+category_rules.csvへ追加・修正すべきAllow/Denyを提案してください。
+
+確認対象：
+
+SAFE
+
+CHECK
+
+OUT_DENY
+
+確認方針：
+
+SAFEへ異カテゴリが混在していないか。
+
+CHECKにSAFE候補が残っていないか。
+
+OUT_DENYに誤除外がないか。
+
+修正方針：
+
+SAFE混在→Deny追加
+
+CHECK→Allow追加
+
+OUT_DENY→Deny削除・弱体化・具体化
+
+既存ルール削除時は理由を書く。
+
+出力形式：
+
+修正判断
+
+↓
+
+CSV
+
+category,allow,xxxxx,contains,
+category,deny,xxxxx,contains,
+
+削除候補がある場合
+
+削除候補：
+category,deny,xxxxx,contains,
+
+理由：
+
+重要ルール：
+
+SAFE混在ゼロ最優先
+
+サイズ・容量・型番だけのDenyは禁止
+
+価格条件は禁止
+
+最後に
+
+事実：
+推定：
+
+を記載してください。`;
 
 const $ = (id) => document.getElementById(id);
 
@@ -181,6 +349,7 @@ function setActiveView(view) {
   });
   $("workTitle").textContent = VIEW_TITLES[view] || "現在の作業";
   $("workState").textContent = "作業中";
+  updateSupportPrompts();
   updateWizard();
 }
 
@@ -654,13 +823,13 @@ async function loadArtifacts(options = {}) {
   const data = await githubFetch(`/actions/runs/${state.latestRun.id}/artifacts?per_page=100`);
   const artifacts = [...(data.artifacts || [])].filter(isReviewArtifact).sort((a, b) => artifactRank(a.name) - artifactRank(b.name));
   state.latestArtifacts = artifacts;
-  renderArtifacts(artifacts);
+  await renderArtifacts(artifacts);
   state.artifactsLoaded = true;
   updateWizard();
   log(`${artifacts.length}件のArtifactを取得しました。`);
 }
 
-function renderArtifacts(artifacts) {
+async function renderArtifacts(artifacts) {
   const container = $("artifactList");
   container.innerHTML = "";
   if (!artifacts.length) {
@@ -674,25 +843,70 @@ function renderArtifacts(artifacts) {
     {artifactName: "03_OUT_DENY_CSV", label: "OUT_DENY.csv", mode: "csv"}
   ];
 
-  rows.forEach((row) => {
+  for (const row of rows) {
     const artifact = artifacts.find((item) => item.name === row.artifactName);
+    const count = artifact ? await getArtifactCsvCount(artifact) : null;
     container.appendChild(createArtifactRow({
-      label: row.label,
+      label: `${row.label}　${formatCount(count)}`,
       note: artifact ? `内部Artifact: ${artifact.name} / ${formatKb(artifact.size_in_bytes)}` : "未生成",
       disabled: !artifact || artifact.expired,
       onClick: () => downloadArtifactCsv(artifact, row.label)
     }));
-  });
+  }
 
   const otherArtifacts = ["04_OUT_NG_CSV", "05_OUT_DUPLICATE_CSV", "06_OUT_PRICE_CSV"]
     .map((name) => artifacts.find((item) => item.name === name))
     .filter(Boolean);
+  const otherCounts = await getOtherArtifactCounts(otherArtifacts);
   container.appendChild(createArtifactRow({
-    label: "その他.zip",
-    note: `OUT_NG / OUT_DUPLICATE / OUT_PRICE / ${formatKb(otherArtifacts.reduce((sum, artifact) => sum + artifact.size_in_bytes, 0))}`,
+    label: `その他.zip（OUT_NG ${otherCounts.OUT_NG} / OUT_DUPLICATE ${otherCounts.OUT_DUPLICATE} / OUT_PRICE ${otherCounts.OUT_PRICE}）`,
+    note: `内部Artifact: 04_OUT_NG_CSV / 05_OUT_DUPLICATE_CSV / 06_OUT_PRICE_CSV / ${formatKb(otherArtifacts.reduce((sum, artifact) => sum + artifact.size_in_bytes, 0))}`,
     disabled: !otherArtifacts.length || otherArtifacts.some((artifact) => artifact.expired),
     onClick: () => downloadOtherArtifactsZip(otherArtifacts)
   }));
+}
+
+async function getOtherArtifactCounts(artifacts) {
+  const names = {
+    "04_OUT_NG_CSV": "OUT_NG",
+    "05_OUT_DUPLICATE_CSV": "OUT_DUPLICATE",
+    "06_OUT_PRICE_CSV": "OUT_PRICE"
+  };
+  const counts = {
+    OUT_NG: "件数取得不可",
+    OUT_DUPLICATE: "件数取得不可",
+    OUT_PRICE: "件数取得不可"
+  };
+  for (const artifact of artifacts) {
+    const key = names[artifact.name];
+    if (!key) continue;
+    counts[key] = formatCount(await getArtifactCsvCount(artifact));
+  }
+  return counts;
+}
+
+async function getArtifactCsvCount(artifact) {
+  try {
+    if (!artifact || artifact.expired) return null;
+    const zipBlob = await fetchArtifactBlob(artifact);
+    const entries = await extractZipEntries(zipBlob);
+    const csvEntry = entries.find((entry) => entry.name.toLowerCase().endsWith(".csv")) || entries[0];
+    if (!csvEntry) return null;
+    return await countCsvRows(csvEntry.blob);
+  } catch (error) {
+    log(`${artifact.name} の件数取得に失敗しました: ${error.message || String(error)}`, "error");
+    return null;
+  }
+}
+
+async function countCsvRows(csvBlob) {
+  const text = (await csvBlob.text()).replace(/^\uFEFF/, "");
+  const rows = text.split(/\r?\n/).map((row) => row.trim()).filter(Boolean);
+  return Math.max(0, rows.length - 1);
+}
+
+function formatCount(count) {
+  return Number.isInteger(count) ? `${count}件` : "件数取得不可";
 }
 
 function formatKb(bytes = 0) {
@@ -764,6 +978,68 @@ function displayNameForOtherArtifact(name) {
     "06_OUT_PRICE_CSV": "OUT_PRICE.csv"
   };
   return names[name] || `${name}.csv`;
+}
+
+function currentCategoryName() {
+  if (!state.selectedFile) return "未選択";
+  return parseAmazonFilename(state.selectedFile.name).category;
+}
+
+function buildInitialPrompt() {
+  return INITIAL_RULE_PROMPT;
+}
+
+function buildRevisionPrompt() {
+  return REVISION_RULE_PROMPT;
+}
+
+function updateSupportPrompts() {
+  const categoryEl = $("supportCategoryText");
+  if (categoryEl) categoryEl.textContent = currentCategoryName();
+  if ($("initialPromptText")) $("initialPromptText").value = buildInitialPrompt();
+  if ($("revisionPromptText")) $("revisionPromptText").value = buildRevisionPrompt();
+}
+
+function togglePrompt(textareaId, buttonId) {
+  const textarea = $(textareaId);
+  const button = $(buttonId);
+  textarea.classList.toggle("hidden");
+  button.textContent = textarea.classList.contains("hidden") ? "プロンプト本文を表示" : "プロンプト本文を閉じる";
+}
+
+async function copyPrompt(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const temp = document.createElement("textarea");
+  temp.value = text;
+  document.body.appendChild(temp);
+  temp.focus();
+  temp.select();
+  document.execCommand("copy");
+  temp.remove();
+}
+
+async function copyInitialPrompt() {
+  updateSupportPrompts();
+  await copyPrompt($("initialPromptText").value);
+  showPromptCopyMessage();
+  log("プロンプトをコピーしました");
+}
+
+async function copyRevisionPrompt() {
+  updateSupportPrompts();
+  await copyPrompt($("revisionPromptText").value);
+  showPromptCopyMessage();
+  log("プロンプトをコピーしました");
+}
+
+function showPromptCopyMessage() {
+  const message = $("promptCopyState");
+  if (!message) return;
+  message.textContent = "プロンプトをコピーしました";
+  message.classList.remove("hidden");
 }
 
 function downloadBlob(blob, fileName) {
@@ -918,6 +1194,10 @@ function bindEvents() {
   $("runWorkflowBtn").addEventListener("click", () => guard(runWorkflow));
   $("refreshRunBtn").addEventListener("click", () => guard(fetchLatestRun));
   $("clearLogBtn").addEventListener("click", () => $("messageLog").textContent = "");
+  $("copyInitialPromptBtn").addEventListener("click", () => guard(copyInitialPrompt));
+  $("copyRevisionPromptBtn").addEventListener("click", () => guard(copyRevisionPrompt));
+  $("toggleInitialPromptBtn").addEventListener("click", () => togglePrompt("initialPromptText", "toggleInitialPromptBtn"));
+  $("toggleRevisionPromptBtn").addEventListener("click", () => togglePrompt("revisionPromptText", "toggleRevisionPromptBtn"));
   document.querySelectorAll(".flow-item").forEach((item) => {
     item.addEventListener("click", () => setActiveView(item.dataset.view));
   });

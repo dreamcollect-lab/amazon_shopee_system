@@ -182,29 +182,76 @@
 
         <section class="work-panel" data-view="improve">
           <div class="notice">
-            <strong>Rule改善・再実行</strong>
-            SAFE / CHECK / OUT_DENYの確認結果をもとに、category_rules.csvを更新して再実行します。
+            <strong>Allow / Deny 判定支援</strong>
+            事務担当者がSAFE / CHECK / OUT_DENYを確認した後、ChatGPTを利用してAllow/Denyを作成・改善するための画面です。
           </div>
-          <div class="review-loop">
-            <div>SAFE: 混在や除外すべき商品がないか確認</div>
-            <div>CHECK: SAFE候補とAllow追加候補を確認</div>
-            <div>OUT_DENY: Deny過剰や誤除外を確認</div>
-          </div>
+
+          <section class="support-card">
+            <h2>初回ルール作成</h2>
+            <p>新しいカテゴリーを作成するときに使用します。</p>
+            <div class="actions">
+              <button id="copyInitialPromptBtn" type="button">初回作成プロンプトをコピー</button>
+              <button id="toggleInitialPromptBtn" type="button" class="secondary">プロンプト本文を表示</button>
+            </div>
+            <textarea id="initialPromptText" class="prompt-area hidden" readonly spellcheck="false"></textarea>
+          </section>
+
+          <section class="support-card">
+            <h2>STEP1実行後の改善</h2>
+            <p>SAFE / CHECK / OUT_DENY を確認したあとに使用します。</p>
+            <div class="actions">
+              <button id="copyRevisionPromptBtn" type="button">修正プロンプトをコピー</button>
+              <button id="toggleRevisionPromptBtn" type="button" class="secondary">プロンプト本文を表示</button>
+            </div>
+            <textarea id="revisionPromptText" class="prompt-area hidden" readonly spellcheck="false"></textarea>
+          </section>
+
+          <p id="promptCopyState" class="copy-state hidden">プロンプトをコピーしました</p>
+
+          <section class="support-card">
+            <h2>入力例</h2>
+            <pre class="example-block">カテゴリー名：
+dripkettle
+
+抽出対象：
+商品名に「ドリップケトル」と記載があるドリップケトル本体
+
+除外条件：
+ケース
+カバー
+交換部品
+蓋
+パッキン
+ドリッパー
+フィルター
+コーヒーサーバー
+セット商品
+
+追加条件：
+単体商品のみ
+価格条件はファイル名で判定するためAllow/Denyへ入れない</pre>
+          </section>
+
+          <section class="support-card">
+            <h2>CSV出力例</h2>
+            <pre class="example-block">dripkettle,allow,ドリップケトル,contains,
+dripkettle,deny,ケース,contains,
+dripkettle,deny,カバー,contains,
+dripkettle,deny,収納袋,contains,
+dripkettle,deny,交換用,contains,
+dripkettle,deny,部品,contains,
+dripkettle,deny,パーツ,contains,
+dripkettle,deny,蓋,contains,
+dripkettle,deny,パッキン,contains,
+dripkettle,deny,ドリッパー,contains,
+dripkettle,deny,フィルター,contains,
+dripkettle,deny,コーヒーサーバー,contains,
+dripkettle,deny,セット,contains,</pre>
+          </section>
+
           <div class="actions">
             <button type="button" class="flow-jump" data-view="rules">Rule編集へ戻る</button>
-            <button type="button" class="secondary flow-jump" data-view="run">再実行へ進む</button>
-          </div>
-          <div class="notice next-category">
-            <strong>別カテゴリー作業へ進む場合</strong>
-            同じカテゴリーのAllow/Deny調整が完了し、別CSVへ切り替える時だけ押してください。PATとマスターCSVは削除しません。
-          </div>
-          <div class="review-loop">
-            <div>今回のCSVをクリア</div>
-            <div>新しいAmazon CSVをアップロード</div>
-            <div>対象カテゴリーに合わせてAllow/Denyを調整</div>
-            <div>STEP1実行</div>
-          </div>
-          <div class="actions">
+            <button type="button" class="secondary flow-jump" data-view="run">STEP1を再実行</button>
             <button id="deleteCsvBtn" type="button" class="secondary danger-action">今回のCSVをクリアして次のカテゴリーへ</button>
           </div>
         </section>

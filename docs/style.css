@@ -91,6 +91,12 @@ textarea {
   line-height: 1.5;
 }
 
+.prompt-area {
+  min-height: 260px;
+  margin-top: 12px;
+  background: #fbfdff;
+}
+
 h1,
 h2,
 p {
@@ -563,6 +569,85 @@ p {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel-soft);
+}
+
+.review-loop.compact {
+  gap: 8px;
+}
+
+.review-loop.compact div {
+  padding: 10px;
+  font-size: 13px;
+}
+
+.support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.support-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 16px;
+}
+
+.support-card h2 {
+  margin-bottom: 8px;
+  font-size: 17px;
+}
+
+.support-card p {
+  color: var(--muted);
+}
+
+.copy-state {
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: var(--ok);
+  padding: 10px 12px;
+  font-weight: 700;
+}
+
+.support-fields {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.support-fields div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+}
+
+.support-fields dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.support-fields dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.example-block {
+  margin: 10px 0 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+  padding: 12px;
+  color: var(--text);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .status-console {
