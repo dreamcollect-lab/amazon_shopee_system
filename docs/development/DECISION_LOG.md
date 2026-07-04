@@ -40,4 +40,8 @@
 - Do not implement OpenAI API, AI auto-review, customer public access, paid hosting, or production cutover in Phase3-1.
 - Treat browser-side GitHub token handling as the largest technical risk for the GitHub Pages approach.
 - Use Streamlit Community Cloud as the main fallback candidate if GitHub Pages cannot safely support authentication and temporary CSV upload.
+- Phase4 implements a minimal GitHub Pages UI now, prioritizing operability over security.
+- Phase4 uses LocalStorage for PAT storage.
+- Phase4 uses GitHub Contents API to upload Amazon CSV into `input/working/`; this creates Git commits and is accepted temporarily.
+- Phase4 does not implement OpenAI API connection or AI comments.
 - Remove root-level NG master helper/intermediate files from the STEP1-only GitHub development version after confirming STEP1 does not reference them.

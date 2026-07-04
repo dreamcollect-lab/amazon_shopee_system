@@ -102,3 +102,30 @@ Design notes:
 - Amazon CSV must remain temporary input data and must not be committed into Git history.
 - GitHub Pages has no backend secret store, so PAT handling in the browser is the largest risk.
 - Streamlit Community Cloud is the fallback option because it can run Python UI code and has a server-side environment/secrets model.
+
+## Phase4 GitHub Pages UI Implementation
+
+```text
+docs/index.html
+  -> docs/style.css
+  -> docs/app.js
+      -> GitHub Contents API
+      -> GitHub Actions workflow_dispatch API
+      -> Workflow runs API
+      -> Artifacts API
+```
+
+Implemented capabilities:
+
+- PAT input, save, load, and delete using LocalStorage.
+- Repository, branch, and workflow confirmation.
+- Amazon CSV file selection and filename-derived category/price display.
+- Amazon CSV upload to `input/working/` through Contents API.
+- Master CSV get/update for `category_rules.csv`, `ng_master.csv`, and `shopee_existing_asin.csv`.
+- `run_step1.yml` workflow dispatch.
+- Latest workflow run display.
+- Artifacts listing and download, with SAFE/CHECK/OUT_DENY visually prioritized.
+
+Phase4 tradeoff:
+
+- CSV upload through Contents API leaves Git history. This is accepted in Phase4 and should be improved in a later phase.

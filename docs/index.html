@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Amazon→Shopee STEP1 Web UI</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Amazon→Shopee 自動選別システム</p>
+      <h1>STEP1 Web UI</h1>
+    </div>
+    <div class="repo-badge">
+      <span>dreamcollect-lab/amazon_shopee_system</span>
+      <strong>main</strong>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <nav>
+        <a href="#auth">PAT</a>
+        <a href="#repo">設定</a>
+        <a href="#upload">CSV</a>
+        <a href="#masters">マスター</a>
+        <a href="#run">STEP1</a>
+        <a href="#results">結果</a>
+      </nav>
+    </aside>
+
+    <section class="content">
+      <section id="auth" class="panel">
+        <div class="panel-title">
+          <h2>PAT</h2>
+          <span id="tokenState" class="state-pill">未保存</span>
+        </div>
+        <label for="tokenInput">GitHub Personal Access Token</label>
+        <div class="inline-form">
+          <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_...">
+          <button id="saveTokenBtn" type="button">保存</button>
+          <button id="loadTokenBtn" type="button">読込</button>
+          <button id="clearTokenBtn" type="button" class="secondary">削除</button>
+        </div>
+        <p class="hint">Phase4では操作性優先のためLocalStorageに保存します。</p>
+      </section>
+
+      <section id="repo" class="panel">
+        <div class="panel-title">
+          <h2>Repository</h2>
+        </div>
+        <div class="info-grid">
+          <div><span>Owner</span><strong id="ownerText"></strong></div>
+          <div><span>Repository</span><strong id="repoText"></strong></div>
+          <div><span>Branch</span><strong id="branchText"></strong></div>
+          <div><span>Workflow</span><strong id="workflowText"></strong></div>
+        </div>
+      </section>
+
+      <section id="upload" class="panel">
+        <div class="panel-title">
+          <h2>Amazon CSV</h2>
+          <span id="fileState" class="state-pill">未選択</span>
+        </div>
+        <div id="dropZone" class="drop-zone">
+          <input id="csvInput" type="file" accept=".csv,text/csv">
+          <p>CSVをドラッグ&ドロップ、またはクリックして選択</p>
+        </div>
+        <div class="info-grid file-info">
+          <div><span>ファイル名</span><strong id="fileNameText">-</strong></div>
+          <div><span>category</span><strong id="categoryText">-</strong></div>
+          <div><span>価格条件</span><strong id="priceText">-</strong></div>
+          <div><span>サイズ</span><strong id="fileSizeText">-</strong></div>
+        </div>
+        <div class="actions">
+          <button id="uploadCsvBtn" type="button">input/workingへアップロード</button>
+        </div>
+        <p class="warning">Phase4ではContents APIでCSVをcommitします。CSVをGit履歴に残さない方式は後続Phaseで改善します。</p>
+      </section>
+
+      <section id="masters" class="panel">
+        <div class="panel-title">
+          <h2>マスターCSV</h2>
+        </div>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-master="category_rules.csv" type="button">category_rules</button>
+          <button class="tab" data-master="ng_master.csv" type="button">ng_master</button>
+          <button class="tab" data-master="shopee_existing_asin.csv" type="button">shopee_existing_asin</button>
+        </div>
+        <div class="actions">
+          <button id="loadMasterBtn" type="button">取得</button>
+          <button id="saveMasterBtn" type="button">更新</button>
+        </div>
+        <textarea id="masterEditor" spellcheck="false" placeholder="マスターCSVを取得するとここに表示されます"></textarea>
+      </section>
+
+      <section id="run" class="panel">
+        <div class="panel-title">
+          <h2>STEP1実行</h2>
+        </div>
+        <div class="actions">
+          <button id="runWorkflowBtn" type="button">Run STEP1</button>
+          <button id="refreshRunBtn" type="button" class="secondary">最新Run取得</button>
+        </div>
+        <div class="run-card">
+          <div><span>Run ID</span><strong id="runIdText">-</strong></div>
+          <div><span>Status</span><strong id="runStatusText">-</strong></div>
+          <div><span>Conclusion</span><strong id="runConclusionText">-</strong></div>
+          <div><span>Created</span><strong id="runCreatedText">-</strong></div>
+          <a id="runLink" href="#" target="_blank" rel="noopener">GitHubで開く</a>
+        </div>
+      </section>
+
+      <section id="results" class="panel">
+        <div class="panel-title">
+          <h2>Artifacts</h2>
+        </div>
+        <div class="artifact-priority">
+          <div class="artifact-box primary">01_SAFE_CSV</div>
+          <div class="artifact-box primary">02_CHECK_CSV</div>
+          <div class="artifact-box primary">03_OUT_DENY_CSV</div>
+          <div class="artifact-box">04_OUT_NG_CSV</div>
+          <div class="artifact-box">05_OUT_DUPLICATE_CSV</div>
+          <div class="artifact-box">06_OUT_PRICE_CSV</div>
+        </div>
+        <div class="actions">
+          <button id="loadArtifactsBtn" type="button">Artifacts取得</button>
+        </div>
+        <div id="artifactList" class="artifact-list"></div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="panel-title">
+          <h2>ログ</h2>
+          <button id="clearLogBtn" type="button" class="secondary">クリア</button>
+        </div>
+        <pre id="messageLog"></pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

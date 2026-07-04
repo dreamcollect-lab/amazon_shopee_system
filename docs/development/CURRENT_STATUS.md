@@ -61,6 +61,18 @@
 - The biggest technical risk is secure token handling in a static GitHub Pages UI.
 - Streamlit Community Cloud is the main fallback if GitHub Pages cannot safely handle authentication and temporary CSV input.
 
+## Phase4 GitHub Pages UI
+
+- Phase4 implements the first working GitHub Pages UI under `docs/`.
+- Files: `docs/index.html`, `docs/style.css`, `docs/app.js`.
+- Backend and GitHub App are not used.
+- PAT is stored in LocalStorage for usability.
+- The UI can upload Amazon CSV to `input/working/` using GitHub Contents API.
+- The UI can trigger `run_step1.yml` with workflow_dispatch.
+- The UI can show the latest workflow run and list/download artifacts.
+- Phase4 accepts that uploaded Amazon CSV files are committed to Git history; avoiding that is a later phase.
+- OpenAI API integration and AI comments are not implemented.
+
 ## Judgment And Review Order
 
 - Judgment order: NG -> DUPLICATE -> DENY -> ALLOW -> SAFE -> PRICE.

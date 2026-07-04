@@ -30,6 +30,9 @@ Prepare the local GitHub development folder and Phase3 Web UI design.
 - Created Phase3 Web UI basic design document.
 - Evaluated GitHub Pages, Streamlit Community Cloud, and paid hosting at design level.
 - Recorded GitHub Pages as the first candidate and token handling as the largest technical risk.
+- Implemented Phase4 GitHub Pages Web UI files.
+- Added PAT LocalStorage handling, Amazon CSV upload, master CSV get/update, workflow_dispatch, latest run display, and artifact listing/downloading.
+- Added GitHub Pages setup documentation.
 
 ## Next Task
 
@@ -37,7 +40,7 @@ Prepare the local GitHub development folder and Phase3 Web UI design.
 - Confirm pre-run requirements before running STEP1 from GitHub Actions.
 - Verify the next GitHub Actions run shows split artifacts and the updated Step Summary.
 - Commit the `.gitignore` update and the staged removal of tracked Amazon CSV input data.
-- Next Phase3 task is GitHub API verification before implementation.
+- Next task is to enable GitHub Pages from `/docs`, test the UI with a PAT, and iterate on usability.
 - Review the existing GitHub remote before any future push.
 - Commit the Phase1 final specification changes.
 - Push only after user confirmation.
