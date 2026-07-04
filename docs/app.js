@@ -23,10 +23,12 @@ const state = {
   workflowRunning: false,
   runPollTimer: null,
   workflowDispatchTime: null,
+  runDetectDeadline: null,
   reviewAutoOpened: false,
   lastRunLogKey: "",
   completedRunId: null,
-  previousRunId: null
+  previousRunId: null,
+  runNotFoundLogged: false
 };
 
 const VIEW_TITLES = {
@@ -119,13 +121,17 @@ function isRunActive(run) {
 
 function isRunAfterDispatch(run) {
   if (!state.workflowDispatchTime || !run?.created_at) return true;
-  return new Date(run.created_at).getTime() >= state.workflowDispatchTime - 30000;
+  return new Date(run.created_at).getTime() >= state.workflowDispatchTime - 120000;
 }
 
 function selectWorkflowRun(runs) {
   const list = runs || [];
   if (!state.workflowDispatchTime) return list[0] || null;
-  return list.find((run) => run.id !== state.previousRunId && isRunAfterDispatch(run)) || null;
+  const candidates = list.filter((run) => isRunAfterDispatch(run));
+  const newCandidates = candidates.filter((run) => run.id !== state.previousRunId);
+  if (newCandidates.length) return newCandidates[0];
+  if (Date.now() <= state.runDetectDeadline) return null;
+  return list.find((run) => run.id !== state.previousRunId) || null;
 }
 
 function translateRunStatus(status, conclusion = null) {
@@ -203,7 +209,15 @@ function updateWizard() {
     ? (state.categoryRulesSaved ? "確認・保存済み" : "未保存")
     : "未取得";
   $("saveCsvState").textContent = state.csvUploaded ? "アップロード済み" : "未アップロード";
+  updateAmazonCsvActions();
   updateRunNotice();
+}
+
+function updateAmazonCsvActions() {
+  const hasSelection = Boolean(state.selectedFile);
+  $("uploadCsvBtn").classList.toggle("hidden", !hasSelection || state.csvUploaded);
+  $("clearSelectedCsvBtn").classList.toggle("hidden", !hasSelection || state.csvUploaded);
+  $("deleteUploadedCsvBtn").classList.toggle("hidden", !state.csvUploaded);
 }
 
 function saveToken() {
@@ -348,22 +362,33 @@ function resetAmazonCsvState() {
   $("fileSizeText").textContent = "-";
 }
 
+function clearSelectedCsv() {
+  resetAmazonCsvState();
+  resetRunAndArtifactsState();
+  updateWizard();
+  setActiveView("upload");
+  log("選択中のCSVをクリアしました。GitHub上のファイルは変更していません。");
+}
+
 function resetRunAndArtifactsState() {
   state.latestRun = null;
   state.latestArtifacts = [];
   state.artifactsLoaded = false;
   state.workflowRunning = false;
   state.workflowDispatchTime = null;
+  state.runDetectDeadline = null;
   state.reviewAutoOpened = false;
   state.lastRunLogKey = "";
   state.completedRunId = null;
   state.previousRunId = null;
+  state.runNotFoundLogged = false;
   stopRunPolling();
   $("runIdText").textContent = "-";
   $("runStatusText").textContent = "-";
   $("runConclusionText").textContent = "-";
   $("runCreatedText").textContent = "-";
   $("runLink").href = "#";
+  $("runLink").classList.remove("attention-link");
   $("artifactList").innerHTML = "";
 }
 
@@ -485,6 +510,8 @@ async function runWorkflow() {
     return;
   }
   log("STEP1 workflowを実行します。");
+  const previousRun = await fetchLatestWorkflowRun();
+  const dispatchStartedAt = Date.now();
   await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/dispatches`, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -493,21 +520,34 @@ async function runWorkflow() {
   log("STEP1 workflow_dispatchを送信しました。完了まで自動で確認します。");
   state.artifactsLoaded = false;
   state.workflowRunning = true;
-  state.workflowDispatchTime = Date.now();
+  state.workflowDispatchTime = dispatchStartedAt;
+  state.runDetectDeadline = dispatchStartedAt + 60000;
   state.reviewAutoOpened = false;
   state.lastRunLogKey = "";
   state.completedRunId = null;
-  state.previousRunId = state.latestRun?.id || null;
+  state.previousRunId = previousRun?.id || null;
+  state.runNotFoundLogged = false;
+  $("runIdText").textContent = "検出中";
+  $("runStatusText").textContent = "Run検出中";
+  $("runConclusionText").textContent = "未完了";
+  $("runCreatedText").textContent = "-";
+  $("runLink").href = `https://github.com/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/${CONFIG.workflow}`;
+  $("runLink").classList.remove("attention-link");
   setActiveView("run");
   startRunPolling();
-  setTimeout(fetchLatestRun, 3000);
+  setTimeout(() => guard(() => fetchLatestRun({silent: true})), 3000);
+}
+
+async function fetchLatestWorkflowRun() {
+  const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=1`);
+  return data.workflow_runs?.[0] || null;
 }
 
 function startRunPolling() {
   stopRunPolling();
   state.runPollTimer = setInterval(() => {
     guard(() => fetchLatestRun({silent: true}));
-  }, 7000);
+  }, 5000);
 }
 
 function stopRunPolling() {
@@ -534,7 +574,22 @@ async function fetchLatestRun(options = {}) {
   const run = selectWorkflowRun(data.workflow_runs);
   if (!run) {
     if (state.workflowDispatchTime) {
-      if (!options.silent) log("新しいWorkflow Runの開始待ちです。");
+      if (!state.runNotFoundLogged) {
+        log("GitHub ActionsのRun開始を自動確認中です。");
+        state.runNotFoundLogged = true;
+      }
+      if (Date.now() > state.runDetectDeadline) {
+        state.workflowRunning = false;
+        state.workflowDispatchTime = null;
+        state.runDetectDeadline = null;
+        stopRunPolling();
+        $("runStatusText").textContent = "Run未検出";
+        $("runConclusionText").textContent = "GitHub側でRunは開始された可能性があります";
+        $("runLink").href = `https://github.com/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/${CONFIG.workflow}`;
+        $("runLink").classList.add("attention-link");
+        updateWizard();
+        log("60秒以内にRun IDを取得できませんでした。GitHub側でRunは開始された可能性があります。管理者リンクで確認してください。", "error");
+      }
       return;
     }
     log("Workflow Runが見つかりません。", "error");
@@ -559,6 +614,7 @@ async function handleCompletedRun(run) {
   state.completedRunId = run.id;
   state.workflowRunning = false;
   state.workflowDispatchTime = null;
+  state.runDetectDeadline = null;
   stopRunPolling();
 
   if (run.conclusion === "success") {
@@ -853,6 +909,8 @@ function bindEvents() {
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("uploadCsvBtn").addEventListener("click", () => guard(uploadCsv));
+  $("clearSelectedCsvBtn").addEventListener("click", clearSelectedCsv);
+  $("deleteUploadedCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
   $("deleteCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
   $("saveMasterBtn").addEventListener("click", () => guard(saveMaster));
