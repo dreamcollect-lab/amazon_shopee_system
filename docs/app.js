@@ -43,7 +43,7 @@ function log(message, type = "info") {
 
 function getToken() {
   const token = $("tokenInput").value.trim() || state.token;
-  if (!token) throw new Error("PATが未入力です。PATを入力または読込してください。");
+  if (!token) throw new Error("PATが未保存です。初回のみPATを貼り付けてPATを保存してください。");
   return token;
 }
 
