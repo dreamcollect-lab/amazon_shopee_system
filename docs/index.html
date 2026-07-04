@@ -29,6 +29,7 @@
             <div><span>Branch</span><strong id="branchText"></strong></div>
             <div><span>Workflow</span><strong id="workflowText"></strong></div>
           </div>
+          <p class="admin-note">管理者向け: 現在の実装ではCSVアップロード・削除はGit commitとして記録されます。ファイル一覧からは消えますが、Git履歴には残ります。</p>
         </div>
       </details>
 
@@ -73,7 +74,6 @@
           </div>
           <div class="heading-actions">
             <span id="workState" class="state-pill">作業中</span>
-            <button id="resetWorkBtn" type="button" class="secondary">今回の作業をリセット</button>
           </div>
         </div>
 
@@ -97,9 +97,7 @@
           </div>
           <div class="actions">
             <button id="uploadCsvBtn" type="button">input/workingへアップロード</button>
-            <button id="deleteCsvBtn" type="button" class="secondary danger-action">現在のAmazon CSVを削除</button>
           </div>
-          <p class="warning">Phase4/7ではContents APIでCSVをcommitします。CSVをGit履歴に残さない方式は後続Phaseで改善します。</p>
         </section>
 
         <section id="masters" class="work-panel" data-view="rules">
@@ -189,6 +187,19 @@
           <div class="actions">
             <button type="button" class="flow-jump" data-view="rules">Rule編集へ戻る</button>
             <button type="button" class="secondary flow-jump" data-view="run">再実行へ進む</button>
+          </div>
+          <div class="notice next-category">
+            <strong>別カテゴリー作業へ進む場合</strong>
+            同じカテゴリーのAllow/Deny調整が完了し、別CSVへ切り替える時だけ押してください。PATとマスターCSVは削除しません。
+          </div>
+          <div class="review-loop">
+            <div>今回のCSVをクリア</div>
+            <div>新しいAmazon CSVをアップロード</div>
+            <div>対象カテゴリーに合わせてAllow/Denyを調整</div>
+            <div>STEP1実行</div>
+          </div>
+          <div class="actions">
+            <button id="deleteCsvBtn" type="button" class="secondary danger-action">今回のCSVをクリアして次のカテゴリーへ</button>
           </div>
         </section>
       </section>

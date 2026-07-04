@@ -210,6 +210,12 @@ p {
   font-size: 12px;
 }
 
+.admin-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .flow-panel {
   display: grid;
   gap: 8px;

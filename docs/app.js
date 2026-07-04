@@ -23,7 +23,8 @@ const state = {
   workflowRunning: false,
   runPollTimer: null,
   workflowDispatchTime: null,
-  reviewAutoOpened: false
+  reviewAutoOpened: false,
+  lastRunLogKey: ""
 };
 
 const VIEW_TITLES = {
@@ -117,6 +118,12 @@ function isRunActive(run) {
 function isRunAfterDispatch(run) {
   if (!state.workflowDispatchTime || !run?.created_at) return true;
   return new Date(run.created_at).getTime() >= state.workflowDispatchTime - 30000;
+}
+
+function selectWorkflowRun(runs) {
+  const list = runs || [];
+  if (!state.workflowDispatchTime) return list[0] || null;
+  return list.find((run) => isRunAfterDispatch(run)) || null;
 }
 
 function translateRunStatus(status, conclusion = null) {
@@ -346,6 +353,7 @@ function resetRunAndArtifactsState() {
   state.workflowRunning = false;
   state.workflowDispatchTime = null;
   state.reviewAutoOpened = false;
+  state.lastRunLogKey = "";
   stopRunPolling();
   $("runIdText").textContent = "-";
   $("runStatusText").textContent = "-";
@@ -356,41 +364,49 @@ function resetRunAndArtifactsState() {
 }
 
 function resetWork() {
-  resetAmazonCsvState();
   resetRunAndArtifactsState();
   updateWizard();
-  setActiveView("upload");
-  log("今回の作業をリセットしました。PATとマスターCSVの内容は保持しています。");
+  log("今回の作業状態をリセットしました。Amazon CSV、PAT、マスターCSVは保持しています。");
 }
 
 async function deleteCurrentCsv() {
-  const path = state.currentAmazonPath || (state.selectedFile ? `input/working/${state.selectedFile.name}` : "");
-  if (!path) {
-    log("削除対象のAmazon CSVがありません。", "error");
-    return;
-  }
-  const sha = await getContentSha(path);
-  if (!sha) {
-    log(`GitHub上に削除対象CSVが見つかりません: ${path}`, "error");
+  const files = await listWorkingCsvFiles();
+  if (!files.length) {
+    log("input/working に削除対象のAmazon CSVがありません。", "error");
     resetAmazonCsvState();
     resetRunAndArtifactsState();
     updateWizard();
+    setActiveView("upload");
     return;
   }
-  await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
-    method: "DELETE",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      message: `Delete Amazon CSV ${path}`,
-      sha,
-      branch: CONFIG.branch
-    })
-  });
+  for (const file of files) {
+    await githubFetch(`/contents/${encodeURIComponentPath(file.path)}`, {
+      method: "DELETE",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        message: `Clear Amazon CSV ${file.path}`,
+        sha: file.sha,
+        branch: CONFIG.branch
+      })
+    });
+  }
   resetAmazonCsvState();
   resetRunAndArtifactsState();
   updateWizard();
   setActiveView("upload");
-  log(`Amazon CSVを削除しました: ${path}`);
+  log(`今回のCSVをクリアしました: ${files.map((file) => file.path).join(", ")}`);
+}
+
+async function listWorkingCsvFiles() {
+  try {
+    const data = await githubFetch(`/contents/${encodeURIComponentPath("input/working")}?ref=${encodeURIComponent(CONFIG.branch)}`);
+    return (Array.isArray(data) ? data : [])
+      .filter((item) => item.type === "file" && item.name.toLowerCase().endsWith(".csv"))
+      .map((item) => ({path: item.path, sha: item.sha}));
+  } catch (error) {
+    if (String(error.message).includes("404")) return [];
+    throw error;
+  }
 }
 
 async function loadMaster() {
@@ -475,6 +491,7 @@ async function runWorkflow() {
   state.workflowRunning = true;
   state.workflowDispatchTime = Date.now();
   state.reviewAutoOpened = false;
+  state.lastRunLogKey = "";
   setActiveView("run");
   startRunPolling();
   setTimeout(fetchLatestRun, 3000);
@@ -500,7 +517,7 @@ function renderRun(run) {
   $("runConclusionText").textContent = translateRunConclusion(run?.conclusion);
   $("runCreatedText").textContent = run?.created_at ? new Date(run.created_at).toLocaleString("ja-JP") : "-";
   $("runLink").href = run?.html_url || "#";
-  if (run?.status === "completed" && isRunAfterDispatch(run)) {
+  if (run?.status === "completed" && run.conclusion === "success") {
     state.workflowRunning = false;
     state.workflowDispatchTime = null;
     stopRunPolling();
@@ -510,6 +527,10 @@ function renderRun(run) {
       log("STEP1成功を確認しました。Reviewへ移動し、Artifactsを自動取得します。");
       guard(() => loadArtifacts({silent: true}));
     }
+  } else if (run?.status === "completed") {
+    state.workflowRunning = false;
+    state.workflowDispatchTime = null;
+    stopRunPolling();
   } else if (run) {
     state.workflowRunning = true;
   }
@@ -518,15 +539,24 @@ function renderRun(run) {
 
 async function fetchLatestRun(options = {}) {
   if (!options.silent) log("最新Workflow Runを取得中です。");
-  const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=1`);
-  const run = data.workflow_runs?.[0];
+  const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=10`);
+  const run = selectWorkflowRun(data.workflow_runs);
   if (!run) {
+    if (state.workflowDispatchTime) {
+      if (!options.silent) log("新しいWorkflow Runの開始待ちです。");
+      return;
+    }
     log("Workflow Runが見つかりません。", "error");
     renderRun(null);
     return;
   }
   renderRun(run);
-  log(`最新Runを取得しました: ${run.id} / ${translateRunStatus(run.status, run.conclusion)} / ${translateRunConclusion(run.conclusion)}`);
+  const logKey = `${run.id}:${run.status}:${run.conclusion || "-"}`;
+  const shouldLog = !options.silent || logKey !== state.lastRunLogKey || (run.status === "completed" && run.conclusion === "success" && !state.reviewAutoOpened);
+  if (shouldLog) {
+    log(`最新Runを取得しました: ${run.id} / ${translateRunStatus(run.status, run.conclusion)} / ${translateRunConclusion(run.conclusion)}`);
+    state.lastRunLogKey = logKey;
+  }
 }
 
 function artifactRank(name) {
@@ -800,7 +830,6 @@ function bindEvents() {
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("uploadCsvBtn").addEventListener("click", () => guard(uploadCsv));
   $("deleteCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
-  $("resetWorkBtn").addEventListener("click", resetWork);
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
   $("saveMasterBtn").addEventListener("click", () => guard(saveMaster));
   $("saveMasterBtnMirror").addEventListener("click", () => guard(saveMaster));

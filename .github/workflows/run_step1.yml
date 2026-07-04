@@ -78,14 +78,3 @@ jobs:
           name: 06_OUT_PRICE_CSV
           path: output/out_price/*.csv
           retention-days: 14
-
-      - name: Upload all STEP1 results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: 99_ALL_RESULTS
-          path: |
-            output/
-            logs/
-            summary.txt
-          retention-days: 14
