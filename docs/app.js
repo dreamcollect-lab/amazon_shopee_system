@@ -24,7 +24,9 @@ const state = {
   runPollTimer: null,
   workflowDispatchTime: null,
   reviewAutoOpened: false,
-  lastRunLogKey: ""
+  lastRunLogKey: "",
+  completedRunId: null,
+  previousRunId: null
 };
 
 const VIEW_TITLES = {
@@ -123,12 +125,12 @@ function isRunAfterDispatch(run) {
 function selectWorkflowRun(runs) {
   const list = runs || [];
   if (!state.workflowDispatchTime) return list[0] || null;
-  return list.find((run) => isRunAfterDispatch(run)) || null;
+  return list.find((run) => run.id !== state.previousRunId && isRunAfterDispatch(run)) || null;
 }
 
 function translateRunStatus(status, conclusion = null) {
-  if (status === "completed" && conclusion === "success") return "STEP1成功";
-  if (status === "completed" && conclusion === "failure") return "STEP1失敗";
+  if (status === "completed" && conclusion === "success") return "成功";
+  if (status === "completed" && conclusion === "failure") return "失敗";
   if (status === "completed" && conclusion === "cancelled") return "キャンセル";
   if (status === "completed" && conclusion === "timed_out") return "タイムアウト";
   const labels = {
@@ -136,14 +138,14 @@ function translateRunStatus(status, conclusion = null) {
     requested: "要求済み",
     waiting: "待機中",
     pending: "待機中",
-    in_progress: "STEP1実行中",
+    in_progress: "実行中",
     completed: "完了"
   };
   return labels[status] || status || "-";
 }
 
 function translateRunConclusion(conclusion) {
-  if (!conclusion) return "まだ完了していません";
+  if (!conclusion || conclusion === "-") return "未完了";
   const labels = {
     success: "成功",
     failure: "失敗",
@@ -354,6 +356,8 @@ function resetRunAndArtifactsState() {
   state.workflowDispatchTime = null;
   state.reviewAutoOpened = false;
   state.lastRunLogKey = "";
+  state.completedRunId = null;
+  state.previousRunId = null;
   stopRunPolling();
   $("runIdText").textContent = "-";
   $("runStatusText").textContent = "-";
@@ -492,6 +496,8 @@ async function runWorkflow() {
   state.workflowDispatchTime = Date.now();
   state.reviewAutoOpened = false;
   state.lastRunLogKey = "";
+  state.completedRunId = null;
+  state.previousRunId = state.latestRun?.id || null;
   setActiveView("run");
   startRunPolling();
   setTimeout(fetchLatestRun, 3000);
@@ -517,28 +523,13 @@ function renderRun(run) {
   $("runConclusionText").textContent = translateRunConclusion(run?.conclusion);
   $("runCreatedText").textContent = run?.created_at ? new Date(run.created_at).toLocaleString("ja-JP") : "-";
   $("runLink").href = run?.html_url || "#";
-  if (run?.status === "completed" && run.conclusion === "success") {
-    state.workflowRunning = false;
-    state.workflowDispatchTime = null;
-    stopRunPolling();
-    if (run.conclusion === "success" && !state.reviewAutoOpened) {
-      state.reviewAutoOpened = true;
-      setActiveView("review");
-      log("STEP1成功を確認しました。Reviewへ移動し、Artifactsを自動取得します。");
-      guard(() => loadArtifacts({silent: true}));
-    }
-  } else if (run?.status === "completed") {
-    state.workflowRunning = false;
-    state.workflowDispatchTime = null;
-    stopRunPolling();
-  } else if (run) {
-    state.workflowRunning = true;
-  }
+  $("runLink").classList.toggle("attention-link", run?.status === "completed" && run?.conclusion === "failure");
+  state.workflowRunning = Boolean(run && run.status !== "completed");
   updateWizard();
 }
 
 async function fetchLatestRun(options = {}) {
-  if (!options.silent) log("最新Workflow Runを取得中です。");
+  if (!options.silent) log("Workflow状態を再確認しています。");
   const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=10`);
   const run = selectWorkflowRun(data.workflow_runs);
   if (!run) {
@@ -551,12 +542,41 @@ async function fetchLatestRun(options = {}) {
     return;
   }
   renderRun(run);
+  if (run.status === "completed") {
+    await handleCompletedRun(run);
+    return;
+  }
   const logKey = `${run.id}:${run.status}:${run.conclusion || "-"}`;
-  const shouldLog = !options.silent || logKey !== state.lastRunLogKey || (run.status === "completed" && run.conclusion === "success" && !state.reviewAutoOpened);
+  const shouldLog = !options.silent || logKey !== state.lastRunLogKey;
   if (shouldLog) {
     log(`最新Runを取得しました: ${run.id} / ${translateRunStatus(run.status, run.conclusion)} / ${translateRunConclusion(run.conclusion)}`);
     state.lastRunLogKey = logKey;
   }
+}
+
+async function handleCompletedRun(run) {
+  if (state.completedRunId === run.id) return;
+  state.completedRunId = run.id;
+  state.workflowRunning = false;
+  state.workflowDispatchTime = null;
+  stopRunPolling();
+
+  if (run.conclusion === "success") {
+    log(`STEP1成功を確認しました: Run ${run.id}`);
+    await loadArtifacts({silent: true});
+    state.reviewAutoOpened = true;
+    setActiveView("review");
+    log("Reviewへ移動しました。ダウンロード一覧を確認してください。");
+    return;
+  }
+
+  if (run.conclusion === "failure") {
+    log(`STEP1失敗を確認しました: Run ${run.id}`, "error");
+    setActiveView("run");
+    return;
+  }
+
+  log(`STEP1が完了しました: ${translateRunConclusion(run.conclusion)}`);
 }
 
 function artifactRank(name) {
@@ -588,7 +608,7 @@ function renderArtifacts(artifacts) {
   const container = $("artifactList");
   container.innerHTML = "";
   if (!artifacts.length) {
-    container.textContent = "Review用Artifactsがありません。Run完了後に最新Run取得を押してください。";
+    container.textContent = "Review用Artifactsがまだ表示できません。STEP1成功後に自動表示されます。";
     return;
   }
 
@@ -602,7 +622,7 @@ function renderArtifacts(artifacts) {
     const artifact = artifacts.find((item) => item.name === row.artifactName);
     container.appendChild(createArtifactRow({
       label: row.label,
-      note: artifact ? `内部Artifact: ${artifact.name}` : "未生成",
+      note: artifact ? `内部Artifact: ${artifact.name} / ${formatKb(artifact.size_in_bytes)}` : "未生成",
       disabled: !artifact || artifact.expired,
       onClick: () => downloadArtifactCsv(artifact, row.label)
     }));
@@ -613,10 +633,14 @@ function renderArtifacts(artifacts) {
     .filter(Boolean);
   container.appendChild(createArtifactRow({
     label: "その他.zip",
-    note: "OUT_NG / OUT_DUPLICATE / OUT_PRICE",
+    note: `OUT_NG / OUT_DUPLICATE / OUT_PRICE / ${formatKb(otherArtifacts.reduce((sum, artifact) => sum + artifact.size_in_bytes, 0))}`,
     disabled: !otherArtifacts.length || otherArtifacts.some((artifact) => artifact.expired),
     onClick: () => downloadOtherArtifactsZip(otherArtifacts)
   }));
+}
+
+function formatKb(bytes = 0) {
+  return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
 function createArtifactRow({label, note, disabled, onClick}) {

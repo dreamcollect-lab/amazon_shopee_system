@@ -490,6 +490,12 @@ p {
   font-weight: 700;
 }
 
+.run-card a.attention-link {
+  border-color: #b42318;
+  background: #fff1f0;
+  color: #b42318;
+}
+
 .artifact-priority {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
