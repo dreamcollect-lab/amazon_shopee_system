@@ -28,6 +28,10 @@
 - Phase4 stores PAT in LocalStorage and uploads CSV through GitHub Contents API.
 - Phase4 UI flow is Amazon CSV confirmation -> category_rules.csv confirmation -> STEP1 execution.
 - Phase4 accepts that uploaded CSV files are committed to Git history; later phases should improve this.
+- Phase7 updates the UI into a business application layout for the future Amazon->Shopee OS.
+- The UI now uses a fixed left business flow, a focused right work area, and a bottom status console.
+- Standard UI flow is Amazon CSV upload -> category_rules.csv editing -> master save -> STEP1 execution -> Review -> Rule improvement and rerun.
+- This Phase7 shell should be reused when STEP2, STEP3, STEP4, and AI review are added.
 
 ## Important Files
 
@@ -50,3 +54,4 @@
 - Before implementing Phase3, verify GitHub API operations, temporary CSV input, workflow dispatch, artifact download, and token handling.
 - To enable the UI, configure GitHub Pages to deploy from branch `main` and folder `/docs`.
 - In UI testing, upload Amazon CSV first, confirm filename/category/price, fetch and save `category_rules.csv`, then run STEP1.
+- In Phase7 UI testing, confirm each left-side flow item opens only its matching work area and that the bottom status console receives API/run/error messages.

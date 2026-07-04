@@ -240,6 +240,45 @@ AIレビューまたは人レビュー
 問題なければ完了
 ```
 
+## 7.1 Phase7 業務アプリケーションUI
+
+Phase7では、GitHub Pages UIを単なるWebページではなく、今後のSTEP2、STEP3、STEP4、AIレビューにも拡張できる「Amazon→Shopee OS」の共通業務レイアウトとして扱います。
+
+標準画面構成:
+
+```text
+Amazon→Shopee 自動選別システム
+  |
+  +-- 上部: PAT / Repository / Branch / Workflow確認
+  |
+  +-- 左側: 業務フロー
+  |     ① Amazon CSVアップロード
+  |     ② category_rules.csv編集
+  |     ③ マスター保存
+  |     ④ STEP1実行
+  |     ⑤ Review
+  |     ⑥ Rule改善・再実行
+  |
+  +-- 右側: 現在の作業だけを表示
+  |
+  +-- 下部: ステータス・実行結果・エラー・GitHub API結果・Workflow状態
+```
+
+業務フローは実務順を正本とします。
+
+```text
+Amazon CSVアップロード
+  -> category_rules.csv編集
+  -> マスター保存
+  -> STEP1実行
+  -> Review
+  -> Rule改善・再実行
+```
+
+UI上では現在作業中の項目だけを強調し、完了済みはチェック表示、未実施は通常表示にします。右側の作業エリアは、選択中の業務だけを表示します。これにより、事務担当者が現在の作業へ集中しやすくし、将来のSTEP2以降も同じレイアウトで追加できる状態にします。
+
+下部ステータスエリアには、実行結果、エラー、GitHub API結果、Workflow状態を集約します。
+
 ## 8. 変更ファイル一覧
 
 ### 変更したファイル

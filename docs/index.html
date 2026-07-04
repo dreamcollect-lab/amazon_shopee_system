@@ -3,167 +3,204 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Amazon→Shopee STEP1 Web UI</title>
+  <title>Amazon→Shopee 自動選別システム</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">Amazon→Shopee 自動選別システム</p>
-      <h1>STEP1 Web UI</h1>
-    </div>
-    <div class="repo-badge">
-      <span>dreamcollect-lab/amazon_shopee_system</span>
-      <strong>main</strong>
-    </div>
-  </header>
-
-  <main class="layout">
-    <aside class="sidebar">
-      <nav>
-        <a href="#auth">PAT</a>
-        <a href="#repo">設定</a>
-        <a href="#upload">CSV</a>
-        <a href="#masters">マスター</a>
-        <a href="#run">STEP1</a>
-        <a href="#results">結果</a>
-      </nav>
-      <div class="wizard">
-        <h2>作業順</h2>
-        <ol>
-          <li id="stepUpload" class="active">Amazon CSV確認</li>
-          <li id="stepRules">ルール追加</li>
-          <li id="stepSave">マスター保存</li>
-          <li id="stepRun">STEP1実行</li>
-          <li id="stepResults">結果確認</li>
-        </ol>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Amazon→Shopee OS / Phase7</p>
+        <h1>Amazon→Shopee 自動選別システム</h1>
       </div>
-    </aside>
+      <div class="repo-summary">
+        <span>Repository</span>
+        <strong>dreamcollect-lab/amazon_shopee_system</strong>
+        <span>Branch: main / Workflow: run_step1.yml</span>
+      </div>
+    </header>
 
-    <section class="content">
-      <section id="auth" class="panel">
-        <div class="panel-title">
-          <h2>PAT</h2>
-          <span id="tokenState" class="state-pill">未保存</span>
-        </div>
-        <label for="tokenInput">GitHub Personal Access Token</label>
-        <div class="inline-form">
-          <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_...">
-          <button id="saveTokenBtn" type="button">保存</button>
-          <button id="loadTokenBtn" type="button">読込</button>
-          <button id="clearTokenBtn" type="button" class="secondary">削除</button>
-        </div>
-        <p class="hint">Phase4では操作性優先のためLocalStorageに保存します。</p>
-      </section>
-
-      <section id="repo" class="panel">
-        <div class="panel-title">
-          <h2>Repository</h2>
-        </div>
-        <div class="info-grid">
-          <div><span>Owner</span><strong id="ownerText"></strong></div>
-          <div><span>Repository</span><strong id="repoText"></strong></div>
-          <div><span>Branch</span><strong id="branchText"></strong></div>
-          <div><span>Workflow</span><strong id="workflowText"></strong></div>
-        </div>
-      </section>
-
-      <section id="upload" class="panel">
-        <div class="panel-title">
-          <h2>Amazon CSV</h2>
-          <span id="fileState" class="state-pill">未選択</span>
-        </div>
-        <div class="notice strong-notice">
-          <strong>Amazon CSV確認 → ルール追加 → STEP1実行</strong>
-          アップロードしたAmazon CSVのカテゴリ候補・価格条件を確認してから、category_rules.csvへAllow/Denyを追加します。
-        </div>
-        <div id="dropZone" class="drop-zone">
-          <input id="csvInput" type="file" accept=".csv,text/csv">
-          <p>CSVをドラッグ&ドロップ、またはクリックして選択</p>
-        </div>
-        <div class="info-grid file-info">
-          <div><span>ファイル名</span><strong id="fileNameText">-</strong></div>
-          <div><span>category候補</span><strong id="categoryText">-</strong></div>
-          <div><span>価格条件</span><strong id="priceText">-</strong></div>
-          <div><span>サイズ</span><strong id="fileSizeText">-</strong></div>
-        </div>
-        <div class="actions">
-          <button id="uploadCsvBtn" type="button">input/workingへアップロード</button>
-        </div>
-        <p class="warning">Phase4ではContents APIでCSVをcommitします。CSVをGit履歴に残さない方式は後続Phaseで改善します。</p>
-      </section>
-
-      <section id="masters" class="panel">
-        <div class="panel-title">
-          <h2>マスターCSV</h2>
-          <span id="categoryRulesState" class="state-pill">category_rules未取得</span>
-        </div>
-        <div class="notice">
-          <strong>category_rules.csv はAllow/Deny判定の本体です。</strong>
-          Amazon CSVの内容に合わせて、対象カテゴリのAllow/Denyルールを確認・追加してください。
-        </div>
-        <div class="tabs" role="tablist">
-          <button class="tab active" data-master="category_rules.csv" type="button">category_rules</button>
-          <button class="tab" data-master="ng_master.csv" type="button">ng_master</button>
-          <button class="tab" data-master="shopee_existing_asin.csv" type="button">shopee_existing_asin</button>
-        </div>
-        <div class="actions">
-          <button id="loadMasterBtn" type="button">取得</button>
-          <button id="saveMasterBtn" type="button">更新</button>
-        </div>
-        <textarea id="masterEditor" spellcheck="false" placeholder="マスターCSVを取得するとここに表示されます"></textarea>
-      </section>
-
-      <section id="run" class="panel">
-        <div class="panel-title">
-          <h2>STEP1実行</h2>
-        </div>
-        <div class="notice strong-notice">
-          STEP1実行前に、Amazon CSVをアップロードし、対象カテゴリのAllow/Denyルールをcategory_rules.csvへ追加してください。
-        </div>
-        <div class="actions">
-          <button id="runWorkflowBtn" type="button">Run STEP1</button>
-          <button id="refreshRunBtn" type="button" class="secondary">最新Run取得</button>
-        </div>
-        <div class="run-card">
-          <div><span>Run ID</span><strong id="runIdText">-</strong></div>
-          <div><span>Status</span><strong id="runStatusText">-</strong></div>
-          <div><span>Conclusion</span><strong id="runConclusionText">-</strong></div>
-          <div><span>Created</span><strong id="runCreatedText">-</strong></div>
-          <a id="runLink" href="#" target="_blank" rel="noopener">GitHubで開く</a>
-        </div>
-      </section>
-
-      <section id="results" class="panel">
-        <div class="panel-title">
-          <h2>Artifacts</h2>
-        </div>
-        <div class="step-note">
-          SAFE / CHECK / OUT_DENYを確認し、必要に応じてcategory_rules.csvを育てて再実行します。
-        </div>
-        <div class="artifact-priority">
-          <div class="artifact-box primary">01_SAFE_CSV</div>
-          <div class="artifact-box primary">02_CHECK_CSV</div>
-          <div class="artifact-box primary">03_OUT_DENY_CSV</div>
-          <div class="artifact-box">04_OUT_NG_CSV</div>
-          <div class="artifact-box">05_OUT_DUPLICATE_CSV</div>
-          <div class="artifact-box">06_OUT_PRICE_CSV</div>
-        </div>
-        <div class="actions">
-          <button id="loadArtifactsBtn" type="button">Artifacts取得</button>
-        </div>
-        <div id="artifactList" class="artifact-list"></div>
-      </section>
-
-      <section class="panel log-panel">
-        <div class="panel-title">
-          <h2>ログ</h2>
-          <button id="clearLogBtn" type="button" class="secondary">クリア</button>
-        </div>
-        <pre id="messageLog"></pre>
-      </section>
+    <section class="connection-bar">
+      <div class="connection-field token-field">
+        <label for="tokenInput">GitHub PAT</label>
+        <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_...">
+      </div>
+      <div class="connection-actions">
+        <button id="saveTokenBtn" type="button">PAT保存</button>
+        <button id="loadTokenBtn" type="button" class="secondary">読込</button>
+        <button id="clearTokenBtn" type="button" class="secondary">削除</button>
+        <span id="tokenState" class="state-pill">未保存</span>
+      </div>
+      <div class="connection-meta">
+        <div><span>Owner</span><strong id="ownerText"></strong></div>
+        <div><span>Repo</span><strong id="repoText"></strong></div>
+        <div><span>Branch</span><strong id="branchText"></strong></div>
+        <div><span>Workflow</span><strong id="workflowText"></strong></div>
+      </div>
     </section>
-  </main>
+
+    <main class="workspace">
+      <aside class="flow-panel">
+        <div class="flow-title">
+          <span>業務フロー</span>
+          <strong>STEP1</strong>
+        </div>
+        <button id="stepUpload" class="flow-item active" type="button" data-view="upload">
+          <span class="flow-mark">▶</span>
+          <span>① Amazon CSVアップロード</span>
+        </button>
+        <button id="stepRules" class="flow-item" type="button" data-view="rules">
+          <span class="flow-mark">□</span>
+          <span>② category_rules.csv編集</span>
+        </button>
+        <button id="stepSave" class="flow-item" type="button" data-view="save">
+          <span class="flow-mark">□</span>
+          <span>③ マスター保存</span>
+        </button>
+        <button id="stepRun" class="flow-item" type="button" data-view="run">
+          <span class="flow-mark">□</span>
+          <span>④ STEP1実行</span>
+        </button>
+        <button id="stepResults" class="flow-item" type="button" data-view="review">
+          <span class="flow-mark">□</span>
+          <span>⑤ Review</span>
+        </button>
+        <button id="stepImprove" class="flow-item" type="button" data-view="improve">
+          <span class="flow-mark">□</span>
+          <span>⑥ Rule改善・再実行</span>
+        </button>
+      </aside>
+
+      <section class="work-area">
+        <div class="work-heading">
+          <div>
+            <p class="eyebrow">現在の作業</p>
+            <h2 id="workTitle">Amazon CSVアップロード</h2>
+          </div>
+          <span id="workState" class="state-pill">作業中</span>
+        </div>
+
+        <section id="upload" class="work-panel active" data-view="upload">
+          <div class="notice strong-notice">
+            <strong>Amazon CSV確認 → ルール追加 → STEP1実行</strong>
+            まずAmazon CSVをアップロードし、ファイル名・category候補・価格条件を確認します。
+          </div>
+          <div id="dropZone" class="drop-zone">
+            <input id="csvInput" type="file" accept=".csv,text/csv">
+            <p>CSVをドラッグ&ドロップ、またはクリックして選択</p>
+          </div>
+          <div class="info-grid">
+            <div><span>ファイル名</span><strong id="fileNameText">-</strong></div>
+            <div><span>category候補</span><strong id="categoryText">-</strong></div>
+            <div><span>価格条件</span><strong id="priceText">-</strong></div>
+            <div><span>状態</span><strong id="fileState">未選択</strong></div>
+          </div>
+          <div class="info-grid single-row">
+            <div><span>サイズ</span><strong id="fileSizeText">-</strong></div>
+          </div>
+          <div class="actions">
+            <button id="uploadCsvBtn" type="button">input/workingへアップロード</button>
+          </div>
+          <p class="warning">Phase4/7ではContents APIでCSVをcommitします。CSVをGit履歴に残さない方式は後続Phaseで改善します。</p>
+        </section>
+
+        <section id="masters" class="work-panel" data-view="rules">
+          <div class="notice">
+            <strong>category_rules.csv はAllow/Deny判定の本体です。</strong>
+            Amazon CSVの内容に合わせて、対象カテゴリのAllow/Denyルールを確認・追加してください。
+          </div>
+          <div class="master-toolbar">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-master="category_rules.csv" type="button">category_rules</button>
+              <button class="tab" data-master="ng_master.csv" type="button">ng_master</button>
+              <button class="tab" data-master="shopee_existing_asin.csv" type="button">shopee_existing_asin</button>
+            </div>
+            <span id="categoryRulesState" class="state-pill">category_rules未取得</span>
+          </div>
+          <div class="actions">
+            <button id="loadMasterBtn" type="button">マスター取得</button>
+            <button id="saveMasterBtn" type="button">マスター保存</button>
+          </div>
+          <textarea id="masterEditor" spellcheck="false" placeholder="category_rules.csvを取得し、対象カテゴリのAllow/Denyルールを確認・追加してください"></textarea>
+        </section>
+
+        <section class="work-panel" data-view="save">
+          <div class="notice">
+            <strong>マスター保存</strong>
+            編集したマスターCSVを保存します。STEP1実行前にcategory_rules.csvが取得・保存済みである必要があります。
+          </div>
+          <div class="status-list">
+            <div><span>category_rules.csv</span><strong id="saveCategoryState">未取得</strong></div>
+            <div><span>Amazon CSV</span><strong id="saveCsvState">未アップロード</strong></div>
+          </div>
+          <div class="actions">
+            <button id="saveMasterBtnMirror" type="button">現在のマスターを保存</button>
+            <button type="button" class="secondary flow-jump" data-view="run">STEP1実行へ進む</button>
+          </div>
+        </section>
+
+        <section id="run" class="work-panel" data-view="run">
+          <div class="notice strong-notice">
+            STEP1実行前に、Amazon CSVをアップロードし、対象カテゴリのAllow/Denyルールをcategory_rules.csvへ追加してください。
+          </div>
+          <div class="actions">
+            <button id="runWorkflowBtn" type="button">Run STEP1</button>
+            <button id="refreshRunBtn" type="button" class="secondary">最新Run取得</button>
+          </div>
+          <div class="run-card">
+            <div><span>Run ID</span><strong id="runIdText">-</strong></div>
+            <div><span>Status</span><strong id="runStatusText">-</strong></div>
+            <div><span>Conclusion</span><strong id="runConclusionText">-</strong></div>
+            <div><span>Created</span><strong id="runCreatedText">-</strong></div>
+            <a id="runLink" href="#" target="_blank" rel="noopener">GitHubで開く</a>
+          </div>
+        </section>
+
+        <section id="results" class="work-panel" data-view="review">
+          <div class="notice">
+            <strong>Review</strong>
+            SAFE / CHECK / OUT_DENYを優先確認します。結果を見て、必要に応じてcategory_rules.csvを育てます。
+          </div>
+          <div class="artifact-priority">
+            <div class="artifact-box primary">01_SAFE_CSV</div>
+            <div class="artifact-box primary">02_CHECK_CSV</div>
+            <div class="artifact-box primary">03_OUT_DENY_CSV</div>
+            <div class="artifact-box">04_OUT_NG_CSV</div>
+            <div class="artifact-box">05_OUT_DUPLICATE_CSV</div>
+            <div class="artifact-box">06_OUT_PRICE_CSV</div>
+          </div>
+          <div class="actions">
+            <button id="loadArtifactsBtn" type="button">Artifacts取得</button>
+          </div>
+          <div id="artifactList" class="artifact-list"></div>
+        </section>
+
+        <section class="work-panel" data-view="improve">
+          <div class="notice">
+            <strong>Rule改善・再実行</strong>
+            SAFE / CHECK / OUT_DENYの確認結果をもとに、category_rules.csvを更新して再実行します。
+          </div>
+          <div class="review-loop">
+            <div>SAFE: 混在や除外すべき商品がないか確認</div>
+            <div>CHECK: SAFE候補とAllow追加候補を確認</div>
+            <div>OUT_DENY: Deny過剰や誤除外を確認</div>
+          </div>
+          <div class="actions">
+            <button type="button" class="flow-jump" data-view="rules">Rule編集へ戻る</button>
+            <button type="button" class="secondary flow-jump" data-view="run">再実行へ進む</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <section class="status-console">
+      <div class="console-header">
+        <h2>ステータス・実行結果・エラー</h2>
+        <button id="clearLogBtn" type="button" class="secondary">ログクリア</button>
+      </div>
+      <pre id="messageLog"></pre>
+    </section>
+  </div>
 
   <script src="./app.js"></script>
 </body>

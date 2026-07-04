@@ -36,6 +36,9 @@ Prepare the local GitHub development folder and Phase3 Web UI design.
 - Adjusted Phase4 UI flow to Amazon CSV upload and confirmation, then category_rules editing, then STEP1 execution.
 - Added Run STEP1 warning when Amazon CSV has not been uploaded or category_rules.csv has not been fetched/saved.
 - Added a left-side work wizard showing the current operation position.
+- Implemented Phase7 business application layout for the GitHub Pages UI.
+- Reorganized the UI into a fixed left business flow, focused right work area, and bottom status console.
+- Preserved existing Phase4 functions while making the layout reusable for future STEP2, STEP3, STEP4, and AI review screens.
 
 ## Next Task
 
@@ -44,6 +47,7 @@ Prepare the local GitHub development folder and Phase3 Web UI design.
 - Verify the next GitHub Actions run shows split artifacts and the updated Step Summary.
 - Commit the `.gitignore` update and the staged removal of tracked Amazon CSV input data.
 - Next task is to enable GitHub Pages from `/docs`, test the UI with a PAT, and iterate on usability.
+- Next UI task is to test the Phase7 business layout in GitHub Pages and adjust labels or spacing based on actual staff use.
 - Review the existing GitHub remote before any future push.
 - Commit the Phase1 final specification changes.
 - Push only after user confirmation.

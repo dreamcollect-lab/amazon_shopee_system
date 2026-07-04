@@ -43,6 +43,25 @@ Fine-grained tokenを使う場合は、対象repositoryを `dreamcollect-lab/ama
 - CSVはGitHub Contents APIで `input/working/` にアップロードするため、Phase4ではGit履歴に残る。
 - CSVをGit履歴に残さない方式は後続Phaseで改善する。
 
+## Phase7 UIレイアウト
+
+Phase7では、GitHub Pages UIを「Amazon→Shopee OS」の共通業務アプリケーション画面として整理する。
+
+- 左側: 業務フローを固定表示する。
+- 右側: 現在選択中の作業だけを表示する。
+- 下部: ステータス、実行結果、エラー、GitHub API結果、Workflow状態を集約する。
+
+業務フロー:
+
+1. Amazon CSVアップロード
+2. category_rules.csv編集
+3. マスター保存
+4. STEP1実行
+5. Review
+6. Rule改善・再実行
+
+このレイアウトは、今後STEP2、STEP3、STEP4、AIレビューを追加するときの標準UIとして扱う。
+
 ## 基本操作
 
 1. PATを入力して保存する。

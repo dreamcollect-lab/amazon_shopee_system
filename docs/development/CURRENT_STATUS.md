@@ -75,6 +75,15 @@
 - Phase4 accepts that uploaded Amazon CSV files are committed to Git history; avoiding that is a later phase.
 - OpenAI API integration and AI comments are not implemented.
 
+## Phase7 Business Application UI
+
+- Phase7 treats the GitHub Pages UI as the standard business application layout for the future Amazon->Shopee OS.
+- The old horizontal menu has been replaced with a business workflow layout.
+- Left side shows the fixed operational flow: Amazon CSV upload -> category_rules.csv editing -> master save -> STEP1 execution -> Review -> Rule improvement and rerun.
+- Right side shows only the currently selected work area so staff can focus on the active operation.
+- Bottom status console aggregates execution results, errors, GitHub API results, and Workflow state.
+- This layout is intended to be reused when STEP2, STEP3, STEP4, and AI review are added later.
+
 ## Judgment And Review Order
 
 - Judgment order: NG -> DUPLICATE -> DENY -> ALLOW -> SAFE -> PRICE.

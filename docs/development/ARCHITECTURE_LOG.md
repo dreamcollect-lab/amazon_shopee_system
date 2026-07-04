@@ -131,3 +131,44 @@ Implemented capabilities:
 Phase4 tradeoff:
 
 - CSV upload through Contents API leaves Git history. This is accepted in Phase4 and should be improved in a later phase.
+
+## Phase7 Business Application Layout
+
+Phase7 defines the standard UI shell for the future Amazon->Shopee OS.
+
+```text
+docs/index.html
+  -> app header
+  -> PAT / repository connection bar
+  -> workspace
+      -> left business flow
+      -> right focused work area
+  -> bottom status console
+docs/style.css
+  -> enterprise admin layout tokens
+  -> reusable panel, flow, action, status, artifact styles
+docs/app.js
+  -> GitHub API operations
+  -> flow step state
+  -> active work-panel switching
+  -> status console logging
+```
+
+Standard business flow:
+
+```text
+Amazon CSV upload
+  -> category_rules.csv editing
+  -> master save
+  -> STEP1 execution
+  -> Review
+  -> Rule improvement and rerun
+```
+
+Design rules:
+
+- The left side always shows the fixed operational flow.
+- Only the current work area is displayed on the right.
+- Completed flow items are check-marked, the active item is highlighted, and unstarted items remain neutral.
+- The bottom status console is the single place for execution results, errors, GitHub API results, and Workflow state.
+- The structure must support future STEP2, STEP3, STEP4, and AI review screens without changing the whole page model.

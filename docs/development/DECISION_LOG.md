@@ -46,3 +46,8 @@
 - Phase4 does not implement OpenAI API connection or AI comments.
 - Phase4 UI flow is Amazon CSV confirmation -> rule addition -> STEP1 execution. Users review the uploaded Amazon CSV first, then update `category_rules.csv` because it is the Allow/Deny decision body.
 - Remove root-level NG master helper/intermediate files from the STEP1-only GitHub development version after confirming STEP1 does not reference them.
+- Phase7 makes the GitHub Pages UI a business application layout, not a simple web page.
+- Use a fixed left business flow and a right focused work area as the standard Amazon->Shopee OS layout.
+- Standard Phase7 flow is Amazon CSV upload -> category_rules.csv editing -> master save -> STEP1 execution -> Review -> Rule improvement and rerun.
+- Put execution results, errors, GitHub API results, and Workflow state into a bottom status console.
+- Keep this layout reusable for future STEP2, STEP3, STEP4, and AI review additions.

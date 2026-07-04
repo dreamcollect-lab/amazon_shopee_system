@@ -15,7 +15,18 @@ const state = {
   categoryRulesLoaded: false,
   categoryRulesSaved: false,
   masterDirty: false,
-  csvUploaded: false
+  csvUploaded: false,
+  artifactsLoaded: false,
+  currentView: "upload"
+};
+
+const VIEW_TITLES = {
+  upload: "Amazon CSVアップロード",
+  rules: "category_rules.csv編集",
+  save: "マスター保存",
+  run: "STEP1実行",
+  review: "Review",
+  improve: "Rule改善・再実行"
 };
 
 const $ = (id) => document.getElementById(id);
@@ -87,28 +98,44 @@ function updateCategoryRulesState() {
   stateEl.classList.add("ok");
 }
 
+function setActiveView(view) {
+  state.currentView = view;
+  document.querySelectorAll(".work-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.view === view);
+  });
+  document.querySelectorAll(".flow-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === view);
+  });
+  $("workTitle").textContent = VIEW_TITLES[view] || "現在の作業";
+  $("workState").textContent = "作業中";
+  updateWizard();
+}
+
 function updateWizard() {
   const steps = {
     stepUpload: Boolean(state.selectedFile && state.csvUploaded),
     stepRules: state.categoryRulesLoaded,
     stepSave: state.categoryRulesLoaded && state.categoryRulesSaved,
     stepRun: Boolean(state.latestRun),
-    stepResults: false
+    stepResults: state.artifactsLoaded,
+    stepImprove: false
   };
 
   Object.entries(steps).forEach(([id, done]) => {
     const el = $(id);
     if (!el) return;
     el.classList.toggle("done", done);
-    el.classList.remove("active");
+    el.classList.toggle("active", el.dataset.view === state.currentView);
+    const mark = el.querySelector(".flow-mark");
+    if (!mark) return;
+    if (el.dataset.view === state.currentView) mark.textContent = "▶";
+    else mark.textContent = done ? "✔" : "□";
   });
 
-  let active = "stepUpload";
-  if (steps.stepUpload && !steps.stepRules) active = "stepRules";
-  else if (steps.stepRules && !steps.stepSave) active = "stepSave";
-  else if (steps.stepSave && !steps.stepRun) active = "stepRun";
-  else if (steps.stepRun) active = "stepResults";
-  $(active)?.classList.add("active");
+  $("saveCategoryState").textContent = state.categoryRulesLoaded
+    ? (state.categoryRulesSaved ? "確認・保存済み" : "未保存")
+    : "未取得";
+  $("saveCsvState").textContent = state.csvUploaded ? "アップロード済み" : "未アップロード";
 }
 
 function saveToken() {
@@ -227,10 +254,12 @@ async function uploadCsv() {
     body: JSON.stringify(body)
   });
   state.csvUploaded = true;
+  state.artifactsLoaded = false;
   $("fileState").textContent = "アップロード済み";
   $("fileState").classList.add("ok");
   updateWizard();
   log(`Amazon CSVをアップロードしました: ${path}`);
+  setActiveView("rules");
 }
 
 async function loadMaster() {
@@ -241,6 +270,7 @@ async function loadMaster() {
   const text = new TextDecoder("utf-8").decode(Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0)));
   $("masterEditor").value = text;
   state.masterDirty = false;
+  state.artifactsLoaded = false;
   if (state.selectedMaster === "category_rules.csv") {
     state.categoryRulesLoaded = true;
     state.categoryRulesSaved = true;
@@ -266,7 +296,7 @@ async function saveMaster() {
     throw new Error("保存前にマスターCSVを取得してください。");
   }
   const content = textToBase64($("masterEditor").value);
-  await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
+  const result = await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
     method: "PUT",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
@@ -276,7 +306,7 @@ async function saveMaster() {
       branch: CONFIG.branch
     })
   });
-  state.masterSha = null;
+  state.masterSha = result?.content?.sha || null;
   state.masterDirty = false;
   if (state.selectedMaster === "category_rules.csv") {
     state.categoryRulesLoaded = true;
@@ -285,6 +315,7 @@ async function saveMaster() {
   }
   updateWizard();
   log(`マスターCSVを更新しました: ${path}`);
+  if (state.selectedMaster === "category_rules.csv") setActiveView("save");
 }
 
 async function runWorkflow() {
@@ -307,6 +338,8 @@ async function runWorkflow() {
     body: JSON.stringify({ref: CONFIG.branch})
   });
   log("STEP1 workflow_dispatchを送信しました。数秒後に最新Runを取得してください。");
+  state.artifactsLoaded = false;
+  setActiveView("run");
   setTimeout(fetchLatestRun, 3000);
 }
 
@@ -348,6 +381,8 @@ async function loadArtifacts() {
   const data = await githubFetch(`/actions/runs/${state.latestRun.id}/artifacts?per_page=100`);
   const artifacts = [...(data.artifacts || [])].sort((a, b) => artifactRank(a.name) - artifactRank(b.name));
   renderArtifacts(artifacts);
+  state.artifactsLoaded = true;
+  updateWizard();
   log(`${artifacts.length}件のArtifactを取得しました。`);
 }
 
@@ -411,10 +446,17 @@ function bindEvents() {
   $("uploadCsvBtn").addEventListener("click", () => guard(uploadCsv));
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
   $("saveMasterBtn").addEventListener("click", () => guard(saveMaster));
+  $("saveMasterBtnMirror").addEventListener("click", () => guard(saveMaster));
   $("runWorkflowBtn").addEventListener("click", () => guard(runWorkflow));
   $("refreshRunBtn").addEventListener("click", () => guard(fetchLatestRun));
   $("loadArtifactsBtn").addEventListener("click", () => guard(loadArtifacts));
   $("clearLogBtn").addEventListener("click", () => $("messageLog").textContent = "");
+  document.querySelectorAll(".flow-item").forEach((item) => {
+    item.addEventListener("click", () => setActiveView(item.dataset.view));
+  });
+  document.querySelectorAll(".flow-jump").forEach((item) => {
+    item.addEventListener("click", () => setActiveView(item.dataset.view));
+  });
   $("masterEditor").addEventListener("input", () => {
     state.masterDirty = true;
     if (state.selectedMaster === "category_rules.csv") {
@@ -453,6 +495,7 @@ function bindEvents() {
       state.masterDirty = false;
       $("masterEditor").value = "";
       log(`編集対象を切り替えました: ${state.selectedMaster}`);
+      setActiveView("rules");
       updateWizard();
     });
   });
@@ -469,4 +512,5 @@ async function guard(fn) {
 bindEvents();
 loadToken();
 updateCategoryRulesState();
+setActiveView("upload");
 updateWizard();
