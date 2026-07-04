@@ -22,11 +22,15 @@ Prepare the local GitHub development folder for GitHub connection.
 - Reflected Phase1 final GitHub operation specification, including optional updates for `shopee_existing_asin.csv`.
 - Updated GitHub operation flow to start with Amazon CSV input and Amazon CSV review before rule/master updates.
 - Added STEP1 review-system purpose and SAFE/CHECK/OUT_DENY review goals.
+- Improved GitHub Actions result UI with priority summary display, collapsible output list, and split artifacts.
+- Documented that AI comments are not implemented in this phase and AI review remains a future phase.
+- Documented the difference between GitHub Actions total time and STEP1 internal processing time.
 
 ## Next Task
 
 - Decide which files should be tracked in the first Git commit.
 - Confirm pre-run requirements before running STEP1 from GitHub Actions.
+- Verify the next GitHub Actions run shows split artifacts and the updated Step Summary.
 - Review the existing GitHub remote before any future push.
 - Commit the Phase1 final specification changes.
 - Push only after user confirmation.

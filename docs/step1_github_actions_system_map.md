@@ -122,6 +122,8 @@ OUT_NG、OUT_DUPLICATE、OUT_PRICEは通常ほぼ確認しないため、主に�
 
 SAFE / CHECK / OUT_DENY はAIレビューまたは担当者レビューをしやすいCSVとして扱います。元情報と判定情報を残し、レビュー結果を `category_rules.csv`、`ng_master.csv`、`shopee_existing_asin.csv` の改善へ戻します。
 
+現時点ではOpenAI API等のAI接続は実装しません。AIレビューは将来Phaseで対応します。当面は事務担当者がSAFE / CHECK / OUT_DENY CSVをGPTへ渡して確認する運用です。
+
 ## 5. GitHub Actions構成図
 
 ```text
@@ -150,7 +152,14 @@ summary.txt -> GitHub Step Summary
 upload-artifact@v4
   |
   v
-Artifacts: output/, logs/, summary.txt
+Artifacts:
+  01_SAFE_CSV
+  02_CHECK_CSV
+  03_OUT_DENY_CSV
+  04_OUT_NG_CSV
+  05_OUT_DUPLICATE_CSV
+  06_OUT_PRICE_CSV
+  99_ALL_RESULTS
 retention-days: 14
 ```
 
@@ -179,7 +188,7 @@ retention-days: 14
 8. GitHubのActionsタブで `Run STEP1` を選びます。
 9. `Run workflow` から手動実行します。
 10. Step Summaryで `summary.txt` を確認します。
-11. Artifactsの `step1-results` をダウンロードします。
+11. Artifactsの `01_SAFE_CSV`、`02_CHECK_CSV`、`03_OUT_DENY_CSV` を優先して確認します。
 12. SAFE、CHECK、OUT_DENYの順に確認します。
 13. 必要なら `category_rules.csv` / `ng_master.csv` / `shopee_existing_asin.csv` を再修正します。
 14. 再度 `Run STEP1` を実行します。
@@ -273,14 +282,24 @@ AIレビューまたは人レビュー
 - Python: 3.12です。
 - Dependencies: `requirements.txt` をインストールします。
 - Execution: `python scripts/step1.py` を実行します。
-- Summary: `summary.txt` をStep Summaryに表示します。
-- Artifacts: `output/`, `logs/`, `summary.txt` を保存します。
+- Summary: `summary.txt` をStep Summaryに表示します。確認優先ファイルはSAFE / CHECK / OUT_DENYのみを目立つ位置に出し、出力ファイル一覧はHTMLの `details` / `summary` で折りたたみます。
+- Artifacts: 結果確認しやすいように個別Artifactsへ分けます。
 - retention-days: 14です。厳密削除要件ではなく、容量肥大化防止の保守的な設定です。
 
 Artifactsの位置づけ:
 
-- 優先表示: SAFE, CHECK, OUT_DENY
-- 保管: OUT_NG, OUT_DUPLICATE, OUT_PRICE, STANDARD, REVIEW_SOURCE, LOG, SUMMARY
+- `01_SAFE_CSV`: SAFE確認用です。
+- `02_CHECK_CSV`: CHECK確認用です。
+- `03_OUT_DENY_CSV`: OUT_DENY確認用です。
+- `04_OUT_NG_CSV`: 保管・必要時確認用です。
+- `05_OUT_DUPLICATE_CSV`: 保管・必要時確認用です。
+- `06_OUT_PRICE_CSV`: 保管・必要時確認用です。
+- `99_ALL_RESULTS`: `output/`, `logs/`, `summary.txt` をまとめて保存します。
+
+処理時間の考え方:
+
+- GitHub Actions全体時間: runner起動、checkout、Python準備、依存インストール、STEP1実行、summary表示、Artifact保存を含みます。
+- STEP1処理時間: `scripts/step1.py` 内部の実処理時間です。`summary.txt` の処理時間はこちらです。
 
 ## 10. Run STEP1前確認事項
 

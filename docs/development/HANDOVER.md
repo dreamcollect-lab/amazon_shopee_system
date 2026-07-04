@@ -18,6 +18,7 @@
 - GitHub Actions version does not move processed Amazon CSV files by default.
 - SAFE, CHECK, and OUT_DENY CSVs are the priority review outputs.
 - STEP1 is not just a CSV export system. It is a review system for checking SAFE / CHECK / OUT_DENY and growing Allow/Deny, NG, and Duplicate masters.
+- OpenAI API and automatic AI comments are not implemented in the current phase. If AI review is needed, staff manually pass SAFE / CHECK / OUT_DENY CSVs to GPT.
 
 ## Important Files
 
@@ -35,3 +36,4 @@
 - Do not delete `ng_master.csv`.
 - Do not delete `shopee_existing_asin.csv`.
 - Before Run STEP1, confirm the Amazon CSV is under `input/working/`, is not broken, has category in the filename, and uses `category@min-max_日付.csv` only when a price condition is needed.
+- In GitHub Actions results, check `01_SAFE_CSV`, `02_CHECK_CSV`, and `03_OUT_DENY_CSV` first. Use `99_ALL_RESULTS` for full retention.

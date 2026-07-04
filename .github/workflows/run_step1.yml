@@ -31,11 +31,59 @@ jobs:
             echo "summary.txt was not generated." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload STEP1 artifacts
+      - name: Upload SAFE CSV
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: step1-results
+          name: 01_SAFE_CSV
+          path: output/safe/*.csv
+          retention-days: 14
+
+      - name: Upload CHECK CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 02_CHECK_CSV
+          path: output/check/*.csv
+          retention-days: 14
+
+      - name: Upload OUT_DENY CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 03_OUT_DENY_CSV
+          path: output/out_deny/*.csv
+          retention-days: 14
+
+      - name: Upload OUT_NG CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 04_OUT_NG_CSV
+          path: output/out_ng/*.csv
+          retention-days: 14
+
+      - name: Upload OUT_DUPLICATE CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 05_OUT_DUPLICATE_CSV
+          path: output/out_duplicate/*.csv
+          retention-days: 14
+
+      - name: Upload OUT_PRICE CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 06_OUT_PRICE_CSV
+          path: output/out_price/*.csv
+          retention-days: 14
+
+      - name: Upload all STEP1 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 99_ALL_RESULTS
           path: |
             output/
             logs/

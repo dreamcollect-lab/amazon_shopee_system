@@ -26,4 +26,8 @@
 - SAFE review confirms no category mixing and no product that should be excluded.
 - CHECK review finds SAFE candidates and Allow candidates.
 - OUT_DENY review checks Deny false positives and excessive Deny.
+- Do not implement AI comments or OpenAI API integration in this phase. AI review is a future phase, and current operation is staff manually giving CSVs to GPT when needed.
+- Split GitHub Actions artifacts into priority CSV artifacts and `99_ALL_RESULTS` so SAFE / CHECK / OUT_DENY are easy to find.
+- Keep summary concise: priority files appear near the top, lower-priority files appear below, and the full output file list is collapsed.
+- Treat GitHub Actions total time and STEP1 internal processing time as separate measurements.
 - Remove root-level NG master helper/intermediate files from the STEP1-only GitHub development version after confirming STEP1 does not reference them.

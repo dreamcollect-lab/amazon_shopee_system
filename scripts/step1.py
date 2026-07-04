@@ -1083,9 +1083,15 @@ def build_summary_text(timestamp, process_summaries, total_duration):
     lines.append("1. SAFE CSV")
     lines.append("2. CHECK CSV")
     lines.append("3. OUT_DENY CSV")
-    lines.append("4. OUT_NG CSV")
-    lines.append("5. OUT_DUPLICATE CSV")
-    lines.append("6. OUT_PRICE CSV")
+    lines.append("")
+    lines.append("## その他")
+    lines.append("")
+    lines.append("- OUT_NG CSV")
+    lines.append("- OUT_DUPLICATE CSV")
+    lines.append("- OUT_PRICE CSV")
+    lines.append("- STANDARD CSV")
+    lines.append("- REVIEW_SOURCE CSV")
+    lines.append("- LOG")
     lines.append("")
 
     for item in process_summaries:
@@ -1108,10 +1114,21 @@ def build_summary_text(timestamp, process_summaries, total_duration):
         for path in item["output_files"][:3]:
             lines.append(f"- {path.relative_to(BASE_DIR)}")
         lines.append("")
-        lines.append("### 出力ファイル一覧")
+        lines.append("### その他ファイル")
+        lines.append("")
+        for path in item["output_files"][3:]:
+            lines.append(f"- {path.relative_to(BASE_DIR)}")
+        lines.append(f"- {LOG_FILE.relative_to(BASE_DIR)}")
+        lines.append("")
+        lines.append("<details>")
+        lines.append("<summary>出力ファイル一覧を開く</summary>")
         lines.append("")
         for path in item["output_files"]:
             lines.append(f"- {path.relative_to(BASE_DIR)}")
+        lines.append(f"- {LOG_FILE.relative_to(BASE_DIR)}")
+        lines.append(f"- {SUMMARY_FILE.relative_to(BASE_DIR)}")
+        lines.append("")
+        lines.append("</details>")
         lines.append("")
 
     return "\n".join(lines)

@@ -24,6 +24,7 @@
 - If past rules become necessary, add them again to the current master.
 - Review CSV and Shopee import CSV are not split. SAFE/CHECK/OUT_DENY keep source and judgment columns for review.
 - STEP1 is not just a CSV export system. It is a review system for checking SAFE / CHECK / OUT_DENY and improving Allow/Deny, NG, and Duplicate masters.
+- OpenAI API or other AI connections are not implemented in the current phase. AI review is a future phase; for now, staff manually pass SAFE / CHECK / OUT_DENY CSVs to GPT when needed.
 
 ## GitHub Operation Flow
 
@@ -51,6 +52,18 @@
 - CHECK: find products that can be moved to SAFE and identify Allow candidates.
 - OUT_DENY: confirm truly SAFE products are not dropped by Deny and check excessive Deny.
 - OUT_NG / OUT_DUPLICATE / OUT_PRICE: not priority checks; review only when needed.
+
+## GitHub Actions Result UI
+
+- Step Summary shows SAFE, CHECK, and OUT_DENY as the priority files.
+- Other files are shown lower in the summary.
+- Full output file list is collapsed with HTML `details` / `summary`.
+- Artifacts are split into `01_SAFE_CSV`, `02_CHECK_CSV`, `03_OUT_DENY_CSV`, `04_OUT_NG_CSV`, `05_OUT_DUPLICATE_CSV`, `06_OUT_PRICE_CSV`, and `99_ALL_RESULTS`.
+
+## Processing Time
+
+- GitHub Actions total time includes runner startup, checkout, Python setup, dependency install, artifact upload, and other workflow overhead.
+- STEP1 processing time is the internal runtime of `scripts/step1.py` and is the time shown in `summary.txt`.
 
 ## Cleanup Completed
 
