@@ -13,6 +13,7 @@ const state = {
   selectedMaster: "category_rules.csv",
   masterSha: null,
   latestRun: null,
+  latestArtifacts: [],
   categoryRulesLoaded: false,
   categoryRulesSaved: false,
   masterDirty: false,
@@ -340,6 +341,7 @@ function resetAmazonCsvState() {
 
 function resetRunAndArtifactsState() {
   state.latestRun = null;
+  state.latestArtifacts = [];
   state.artifactsLoaded = false;
   state.workflowRunning = false;
   state.workflowDispatchTime = null;
@@ -505,7 +507,8 @@ function renderRun(run) {
     if (run.conclusion === "success" && !state.reviewAutoOpened) {
       state.reviewAutoOpened = true;
       setActiveView("review");
-      log("STEP1成功を確認しました。Reviewへ移動しました。Artifacts取得を押してください。");
+      log("STEP1成功を確認しました。Reviewへ移動し、Artifactsを自動取得します。");
+      guard(() => loadArtifacts({silent: true}));
     }
   } else if (run) {
     state.workflowRunning = true;
@@ -527,19 +530,24 @@ async function fetchLatestRun(options = {}) {
 }
 
 function artifactRank(name) {
-  const order = ["01_SAFE_CSV", "02_CHECK_CSV", "03_OUT_DENY_CSV", "04_OUT_NG_CSV", "05_OUT_DUPLICATE_CSV", "06_OUT_PRICE_CSV", "99_ALL_RESULTS"];
+  const order = ["01_SAFE_CSV", "02_CHECK_CSV", "03_OUT_DENY_CSV", "04_OUT_NG_CSV", "05_OUT_DUPLICATE_CSV", "06_OUT_PRICE_CSV"];
   const index = order.indexOf(name);
   return index === -1 ? 99 : index;
 }
 
-async function loadArtifacts() {
+function isReviewArtifact(artifact) {
+  return ["01_SAFE_CSV", "02_CHECK_CSV", "03_OUT_DENY_CSV", "04_OUT_NG_CSV", "05_OUT_DUPLICATE_CSV", "06_OUT_PRICE_CSV"].includes(artifact.name);
+}
+
+async function loadArtifacts(options = {}) {
   if (!state.latestRun) {
     await fetchLatestRun();
   }
   if (!state.latestRun) return;
-  log(`Artifactsを取得中です: Run ${state.latestRun.id}`);
+  if (!options.silent) log(`Artifactsを取得中です: Run ${state.latestRun.id}`);
   const data = await githubFetch(`/actions/runs/${state.latestRun.id}/artifacts?per_page=100`);
-  const artifacts = [...(data.artifacts || [])].sort((a, b) => artifactRank(a.name) - artifactRank(b.name));
+  const artifacts = [...(data.artifacts || [])].filter(isReviewArtifact).sort((a, b) => artifactRank(a.name) - artifactRank(b.name));
+  state.latestArtifacts = artifacts;
   renderArtifacts(artifacts);
   state.artifactsLoaded = true;
   updateWizard();
@@ -550,28 +558,53 @@ function renderArtifacts(artifacts) {
   const container = $("artifactList");
   container.innerHTML = "";
   if (!artifacts.length) {
-    container.textContent = "Artifactsがありません。Run完了後に再取得してください。";
+    container.textContent = "Review用Artifactsがありません。Run完了後に最新Run取得を押してください。";
     return;
   }
 
-  for (const artifact of artifacts) {
-    const item = document.createElement("div");
-    item.className = "artifact-item";
-    const meta = document.createElement("div");
-    meta.innerHTML = `<strong>${artifact.name}</strong><span>${artifact.size_in_bytes.toLocaleString()} bytes / ${artifact.expired ? "expired" : "available"}</span>`;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = "Download";
-    button.disabled = artifact.expired;
-    button.addEventListener("click", () => downloadArtifact(artifact));
-    item.append(meta, button);
-    container.appendChild(item);
-  }
+  const rows = [
+    {artifactName: "01_SAFE_CSV", label: "SAFE.csv", mode: "csv"},
+    {artifactName: "02_CHECK_CSV", label: "CHECK.csv", mode: "csv"},
+    {artifactName: "03_OUT_DENY_CSV", label: "OUT_DENY.csv", mode: "csv"}
+  ];
+
+  rows.forEach((row) => {
+    const artifact = artifacts.find((item) => item.name === row.artifactName);
+    container.appendChild(createArtifactRow({
+      label: row.label,
+      note: artifact ? `内部Artifact: ${artifact.name}` : "未生成",
+      disabled: !artifact || artifact.expired,
+      onClick: () => downloadArtifactCsv(artifact, row.label)
+    }));
+  });
+
+  const otherArtifacts = ["04_OUT_NG_CSV", "05_OUT_DUPLICATE_CSV", "06_OUT_PRICE_CSV"]
+    .map((name) => artifacts.find((item) => item.name === name))
+    .filter(Boolean);
+  container.appendChild(createArtifactRow({
+    label: "その他.zip",
+    note: "OUT_NG / OUT_DUPLICATE / OUT_PRICE",
+    disabled: !otherArtifacts.length || otherArtifacts.some((artifact) => artifact.expired),
+    onClick: () => downloadOtherArtifactsZip(otherArtifacts)
+  }));
 }
 
-async function downloadArtifact(artifact) {
+function createArtifactRow({label, note, disabled, onClick}) {
+  const item = document.createElement("div");
+  item.className = "artifact-item";
+  const meta = document.createElement("div");
+  meta.innerHTML = `<strong>${label}</strong><span>${note}</span>`;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Download";
+  button.disabled = disabled;
+  button.addEventListener("click", onClick);
+  item.append(meta, button);
+  return item;
+}
+
+async function fetchArtifactBlob(artifact) {
   const token = getToken();
-  log(`Artifactをダウンロード中です: ${artifact.name}`);
   const response = await fetch(artifact.archive_download_url, {
     headers: {
       "Accept": "application/vnd.github+json",
@@ -582,16 +615,179 @@ async function downloadArtifact(artifact) {
   if (!response.ok) {
     throw new Error(`Artifactダウンロードに失敗しました: HTTP ${response.status}`);
   }
-  const blob = await response.blob();
+  return response.blob();
+}
+
+async function downloadArtifactCsv(artifact, fileName) {
+  log(`CSVを準備中です: ${fileName}`);
+  const zipBlob = await fetchArtifactBlob(artifact);
+  const entries = await extractZipEntries(zipBlob);
+  const csvEntry = entries.find((entry) => entry.name.toLowerCase().endsWith(".csv")) || entries[0];
+  if (!csvEntry) throw new Error(`${artifact.name} の中にCSVが見つかりません。`);
+  downloadBlob(csvEntry.blob, fileName);
+  log(`CSVをダウンロードしました: ${fileName}`);
+}
+
+async function downloadOtherArtifactsZip(artifacts) {
+  log("その他.zipを準備中です。");
+  const files = [];
+  for (const artifact of artifacts) {
+    const zipBlob = await fetchArtifactBlob(artifact);
+    const entries = await extractZipEntries(zipBlob);
+    const csvEntry = entries.find((entry) => entry.name.toLowerCase().endsWith(".csv")) || entries[0];
+    if (!csvEntry) continue;
+    files.push({
+      name: displayNameForOtherArtifact(artifact.name),
+      blob: csvEntry.blob
+    });
+  }
+  if (!files.length) throw new Error("その他.zipにまとめるCSVが見つかりません。");
+  const zipBlob = await createStoredZip(files);
+  downloadBlob(zipBlob, "その他.zip");
+  log("その他.zipをダウンロードしました。");
+}
+
+function displayNameForOtherArtifact(name) {
+  const names = {
+    "04_OUT_NG_CSV": "OUT_NG.csv",
+    "05_OUT_DUPLICATE_CSV": "OUT_DUPLICATE.csv",
+    "06_OUT_PRICE_CSV": "OUT_PRICE.csv"
+  };
+  return names[name] || `${name}.csv`;
+}
+
+function downloadBlob(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${artifact.name}.zip`;
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  log(`Artifactをダウンロードしました: ${artifact.name}`);
+}
+
+async function extractZipEntries(zipBlob) {
+  const buffer = await zipBlob.arrayBuffer();
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const entries = [];
+  let eocdOffset = -1;
+  for (let i = bytes.length - 22; i >= 0; i -= 1) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      eocdOffset = i;
+      break;
+    }
+  }
+  if (eocdOffset < 0) throw new Error("ZIPの末尾情報が見つかりません。");
+
+  const entryCount = view.getUint16(eocdOffset + 10, true);
+  let centralOffset = view.getUint32(eocdOffset + 16, true);
+  for (let i = 0; i < entryCount; i += 1) {
+    if (view.getUint32(centralOffset, true) !== 0x02014b50) break;
+    const method = view.getUint16(centralOffset + 10, true);
+    const compressedSize = view.getUint32(centralOffset + 20, true);
+    const fileNameLength = view.getUint16(centralOffset + 28, true);
+    const extraLength = view.getUint16(centralOffset + 30, true);
+    const commentLength = view.getUint16(centralOffset + 32, true);
+    const localOffset = view.getUint32(centralOffset + 42, true);
+    const nameBytes = bytes.slice(centralOffset + 46, centralOffset + 46 + fileNameLength);
+    const name = new TextDecoder("utf-8").decode(nameBytes);
+    const localNameLength = view.getUint16(localOffset + 26, true);
+    const localExtraLength = view.getUint16(localOffset + 28, true);
+    const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = bytes.slice(dataStart, dataStart + compressedSize);
+    if (!name.endsWith("/")) {
+      entries.push({
+        name,
+        blob: await inflateZipData(compressed, method)
+      });
+    }
+    centralOffset += 46 + fileNameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+async function inflateZipData(bytes, method) {
+  if (method === 0) return new Blob([bytes]);
+  if (method !== 8) throw new Error(`未対応のZIP圧縮形式です: ${method}`);
+  if (!("DecompressionStream" in window)) {
+    throw new Error("このブラウザはArtifact ZIPの展開に対応していません。ChromeまたはEdgeで開いてください。");
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Response(stream).blob();
+}
+
+async function createStoredZip(files) {
+  const encoder = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  for (const file of files) {
+    const data = new Uint8Array(await file.blob.arrayBuffer());
+    const nameBytes = encoder.encode(file.name);
+    const crc = crc32(data);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const local = new DataView(localHeader.buffer);
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(4, 20, true);
+    local.setUint16(10, dosTime(), true);
+    local.setUint16(12, dosDate(), true);
+    local.setUint32(14, crc, true);
+    local.setUint32(18, data.length, true);
+    local.setUint32(22, data.length, true);
+    local.setUint16(26, nameBytes.length, true);
+    localHeader.set(nameBytes, 30);
+    chunks.push(localHeader, data);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const dir = new DataView(centralHeader.buffer);
+    dir.setUint32(0, 0x02014b50, true);
+    dir.setUint16(4, 20, true);
+    dir.setUint16(6, 20, true);
+    dir.setUint16(12, dosTime(), true);
+    dir.setUint16(14, dosDate(), true);
+    dir.setUint32(16, crc, true);
+    dir.setUint32(20, data.length, true);
+    dir.setUint32(24, data.length, true);
+    dir.setUint16(28, nameBytes.length, true);
+    dir.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    central.push(centralHeader);
+    offset += localHeader.length + data.length;
+  }
+
+  const centralOffset = offset;
+  const centralSize = central.reduce((sum, item) => sum + item.length, 0);
+  const eocd = new Uint8Array(22);
+  const end = new DataView(eocd.buffer);
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, centralOffset, true);
+  return new Blob([...chunks, ...central, eocd], {type: "application/zip"});
+}
+
+function dosTime() {
+  const now = new Date();
+  return (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+}
+
+function dosDate() {
+  const now = new Date();
+  return ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 function bindEvents() {
@@ -610,7 +806,6 @@ function bindEvents() {
   $("saveMasterBtnMirror").addEventListener("click", () => guard(saveMaster));
   $("runWorkflowBtn").addEventListener("click", () => guard(runWorkflow));
   $("refreshRunBtn").addEventListener("click", () => guard(fetchLatestRun));
-  $("loadArtifactsBtn").addEventListener("click", () => guard(loadArtifacts));
   $("clearLogBtn").addEventListener("click", () => $("messageLog").textContent = "");
   document.querySelectorAll(".flow-item").forEach((item) => {
     item.addEventListener("click", () => setActiveView(item.dataset.view));
