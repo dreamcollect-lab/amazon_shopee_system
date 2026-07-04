@@ -28,6 +28,16 @@
         <a href="#run">STEP1</a>
         <a href="#results">結果</a>
       </nav>
+      <div class="wizard">
+        <h2>作業順</h2>
+        <ol>
+          <li id="stepUpload" class="active">Amazon CSV確認</li>
+          <li id="stepRules">ルール追加</li>
+          <li id="stepSave">マスター保存</li>
+          <li id="stepRun">STEP1実行</li>
+          <li id="stepResults">結果確認</li>
+        </ol>
+      </div>
     </aside>
 
     <section class="content">
@@ -63,13 +73,17 @@
           <h2>Amazon CSV</h2>
           <span id="fileState" class="state-pill">未選択</span>
         </div>
+        <div class="notice strong-notice">
+          <strong>Amazon CSV確認 → ルール追加 → STEP1実行</strong>
+          アップロードしたAmazon CSVのカテゴリ候補・価格条件を確認してから、category_rules.csvへAllow/Denyを追加します。
+        </div>
         <div id="dropZone" class="drop-zone">
           <input id="csvInput" type="file" accept=".csv,text/csv">
           <p>CSVをドラッグ&ドロップ、またはクリックして選択</p>
         </div>
         <div class="info-grid file-info">
           <div><span>ファイル名</span><strong id="fileNameText">-</strong></div>
-          <div><span>category</span><strong id="categoryText">-</strong></div>
+          <div><span>category候補</span><strong id="categoryText">-</strong></div>
           <div><span>価格条件</span><strong id="priceText">-</strong></div>
           <div><span>サイズ</span><strong id="fileSizeText">-</strong></div>
         </div>
@@ -82,6 +96,11 @@
       <section id="masters" class="panel">
         <div class="panel-title">
           <h2>マスターCSV</h2>
+          <span id="categoryRulesState" class="state-pill">category_rules未取得</span>
+        </div>
+        <div class="notice">
+          <strong>category_rules.csv はAllow/Deny判定の本体です。</strong>
+          Amazon CSVの内容に合わせて、対象カテゴリのAllow/Denyルールを確認・追加してください。
         </div>
         <div class="tabs" role="tablist">
           <button class="tab active" data-master="category_rules.csv" type="button">category_rules</button>
@@ -99,6 +118,9 @@
         <div class="panel-title">
           <h2>STEP1実行</h2>
         </div>
+        <div class="notice strong-notice">
+          STEP1実行前に、Amazon CSVをアップロードし、対象カテゴリのAllow/Denyルールをcategory_rules.csvへ追加してください。
+        </div>
         <div class="actions">
           <button id="runWorkflowBtn" type="button">Run STEP1</button>
           <button id="refreshRunBtn" type="button" class="secondary">最新Run取得</button>
@@ -115,6 +137,9 @@
       <section id="results" class="panel">
         <div class="panel-title">
           <h2>Artifacts</h2>
+        </div>
+        <div class="step-note">
+          SAFE / CHECK / OUT_DENYを確認し、必要に応じてcategory_rules.csvを育てて再実行します。
         </div>
         <div class="artifact-priority">
           <div class="artifact-box primary">01_SAFE_CSV</div>

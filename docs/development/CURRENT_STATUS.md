@@ -70,6 +70,8 @@
 - The UI can upload Amazon CSV to `input/working/` using GitHub Contents API.
 - The UI can trigger `run_step1.yml` with workflow_dispatch.
 - The UI can show the latest workflow run and list/download artifacts.
+- The UI guides users through Amazon CSV upload, Amazon CSV confirmation, `category_rules.csv` editing, master save, STEP1 execution, and artifact review.
+- Run STEP1 warns and stops if Amazon CSV has not been uploaded or if `category_rules.csv` has not been fetched/saved in the UI.
 - Phase4 accepts that uploaded Amazon CSV files are committed to Git history; avoiding that is a later phase.
 - OpenAI API integration and AI comments are not implemented.
 

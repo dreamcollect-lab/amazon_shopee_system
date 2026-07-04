@@ -90,6 +90,39 @@ h2 {
   background: #e9eef5;
 }
 
+.wizard {
+  margin-top: 20px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.wizard h2 {
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+.wizard ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.wizard li {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.wizard li.active {
+  color: var(--accent);
+}
+
+.wizard li.done {
+  color: var(--ok);
+}
+
 .content {
   display: grid;
   gap: 20px;
@@ -192,6 +225,26 @@ button.secondary:hover {
   border: 1px solid #f4d08a;
   border-radius: 6px;
   color: #664500;
+}
+
+.notice,
+.step-note {
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid #b9cbe0;
+  border-radius: 6px;
+  background: #f2f7fc;
+}
+
+.notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.strong-notice {
+  border-color: #f4b860;
+  background: var(--warn-bg);
+  color: #5c3b00;
 }
 
 .info-grid {

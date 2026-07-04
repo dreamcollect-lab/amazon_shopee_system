@@ -33,6 +33,9 @@ Prepare the local GitHub development folder and Phase3 Web UI design.
 - Implemented Phase4 GitHub Pages Web UI files.
 - Added PAT LocalStorage handling, Amazon CSV upload, master CSV get/update, workflow_dispatch, latest run display, and artifact listing/downloading.
 - Added GitHub Pages setup documentation.
+- Adjusted Phase4 UI flow to Amazon CSV upload and confirmation, then category_rules editing, then STEP1 execution.
+- Added Run STEP1 warning when Amazon CSV has not been uploaded or category_rules.csv has not been fetched/saved.
+- Added a left-side work wizard showing the current operation position.
 
 ## Next Task
 

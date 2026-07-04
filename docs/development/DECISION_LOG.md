@@ -44,4 +44,5 @@
 - Phase4 uses LocalStorage for PAT storage.
 - Phase4 uses GitHub Contents API to upload Amazon CSV into `input/working/`; this creates Git commits and is accepted temporarily.
 - Phase4 does not implement OpenAI API connection or AI comments.
+- Phase4 UI flow is Amazon CSV confirmation -> rule addition -> STEP1 execution. Users review the uploaded Amazon CSV first, then update `category_rules.csv` because it is the Allow/Deny decision body.
 - Remove root-level NG master helper/intermediate files from the STEP1-only GitHub development version after confirming STEP1 does not reference them.

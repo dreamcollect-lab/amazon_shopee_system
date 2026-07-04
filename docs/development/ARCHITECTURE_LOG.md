@@ -119,6 +119,8 @@ Implemented capabilities:
 
 - PAT input, save, load, and delete using LocalStorage.
 - Repository, branch, and workflow confirmation.
+- Work wizard shows Amazon CSV confirmation -> rule addition -> master save -> STEP1 execution -> result review.
+- Run STEP1 checks whether Amazon CSV has been uploaded and whether `category_rules.csv` has been fetched/saved in the UI, and warns if not.
 - Amazon CSV file selection and filename-derived category/price display.
 - Amazon CSV upload to `input/working/` through Contents API.
 - Master CSV get/update for `category_rules.csv`, `ng_master.csv`, and `shopee_existing_asin.csv`.

@@ -48,8 +48,19 @@ Fine-grained tokenを使う場合は、対象repositoryを `dreamcollect-lab/ama
 1. PATを入力して保存する。
 2. Amazon CSVを選択する。
 3. `input/workingへアップロード` を押す。
-4. 必要ならマスターCSVを取得・編集・更新する。
-5. `Run STEP1` を押す。
-6. 最新Runを確認する。
-7. Artifactsを取得する。
-8. `01_SAFE_CSV`, `02_CHECK_CSV`, `03_OUT_DENY_CSV` を優先確認する。
+4. アップロードしたCSVのファイル名・category候補・価格条件を確認する。
+5. `category_rules.csv` を取得する。
+6. 対象カテゴリのAllow/Denyルールを確認・必要時追加する。
+7. `ng_master.csv` / `shopee_existing_asin.csv` を必要に応じて確認する。
+8. マスターCSVを保存する。
+9. `Run STEP1` を押す。
+10. 最新Runを確認する。
+11. Artifactsを取得する。
+12. `01_SAFE_CSV`, `02_CHECK_CSV`, `03_OUT_DENY_CSV` を優先確認する。
+13. 結果を見てcategory_rules.csvを育て、必要なら再実行する。
+
+## STEP1実行前の注意
+
+STEP1は、Amazon CSVを入れて即実行するものではない。
+
+まずAmazon CSVをアップロードし、その内容・category候補・価格条件を確認する。その後、`category_rules.csv` を取得し、対象カテゴリのAllow/Denyルールを確認・追加してから実行する。Web UIでは、Amazon CSV未アップロード、または `category_rules.csv` が未取得・未保存の場合、Run STEP1前に警告を出す。

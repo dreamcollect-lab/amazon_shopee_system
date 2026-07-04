@@ -26,6 +26,7 @@
 - GitHub Pages token handling and temporary Amazon CSV upload are the main verification points.
 - Phase4 GitHub Pages UI has been implemented under `docs/`.
 - Phase4 stores PAT in LocalStorage and uploads CSV through GitHub Contents API.
+- Phase4 UI flow is Amazon CSV confirmation -> category_rules.csv confirmation -> STEP1 execution.
 - Phase4 accepts that uploaded CSV files are committed to Git history; later phases should improve this.
 
 ## Important Files
@@ -48,3 +49,4 @@
 - If an Amazon CSV was accidentally committed, run `git rm --cached <path>` and commit the removal. Full history purge is not required in Phase1.
 - Before implementing Phase3, verify GitHub API operations, temporary CSV input, workflow dispatch, artifact download, and token handling.
 - To enable the UI, configure GitHub Pages to deploy from branch `main` and folder `/docs`.
+- In UI testing, upload Amazon CSV first, confirm filename/category/price, fetch and save `category_rules.csv`, then run STEP1.

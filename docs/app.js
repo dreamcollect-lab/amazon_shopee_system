@@ -11,7 +11,11 @@ const state = {
   selectedFile: null,
   selectedMaster: "category_rules.csv",
   masterSha: null,
-  latestRun: null
+  latestRun: null,
+  categoryRulesLoaded: false,
+  categoryRulesSaved: false,
+  masterDirty: false,
+  csvUploaded: false
 };
 
 const $ = (id) => document.getElementById(id);
@@ -67,6 +71,46 @@ function updateTokenState() {
   $("tokenState").classList.toggle("ok", saved);
 }
 
+function updateCategoryRulesState() {
+  const stateEl = $("categoryRulesState");
+  if (!state.categoryRulesLoaded) {
+    stateEl.textContent = "category_rules未取得";
+    stateEl.classList.remove("ok");
+    return;
+  }
+  if (!state.categoryRulesSaved) {
+    stateEl.textContent = "category_rules未保存";
+    stateEl.classList.remove("ok");
+    return;
+  }
+  stateEl.textContent = "category_rules確認済み";
+  stateEl.classList.add("ok");
+}
+
+function updateWizard() {
+  const steps = {
+    stepUpload: Boolean(state.selectedFile && state.csvUploaded),
+    stepRules: state.categoryRulesLoaded,
+    stepSave: state.categoryRulesLoaded && state.categoryRulesSaved,
+    stepRun: Boolean(state.latestRun),
+    stepResults: false
+  };
+
+  Object.entries(steps).forEach(([id, done]) => {
+    const el = $(id);
+    if (!el) return;
+    el.classList.toggle("done", done);
+    el.classList.remove("active");
+  });
+
+  let active = "stepUpload";
+  if (steps.stepUpload && !steps.stepRules) active = "stepRules";
+  else if (steps.stepRules && !steps.stepSave) active = "stepSave";
+  else if (steps.stepSave && !steps.stepRun) active = "stepRun";
+  else if (steps.stepRun) active = "stepResults";
+  $(active)?.classList.add("active");
+}
+
 function saveToken() {
   const token = $("tokenInput").value.trim();
   if (!token) {
@@ -119,6 +163,7 @@ function parseAmazonFilename(fileName) {
 
 function setSelectedFile(file) {
   state.selectedFile = file;
+  state.csvUploaded = false;
   const parsed = parseAmazonFilename(file.name);
   $("fileState").textContent = "選択済み";
   $("fileState").classList.add("ok");
@@ -127,6 +172,7 @@ function setSelectedFile(file) {
   $("priceText").textContent = parsed.price;
   $("fileSizeText").textContent = `${file.size.toLocaleString()} bytes`;
   log(`CSVを選択しました: ${file.name}`);
+  updateWizard();
 }
 
 function arrayBufferToBase64(buffer) {
@@ -180,6 +226,10 @@ async function uploadCsv() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body)
   });
+  state.csvUploaded = true;
+  $("fileState").textContent = "アップロード済み";
+  $("fileState").classList.add("ok");
+  updateWizard();
   log(`Amazon CSVをアップロードしました: ${path}`);
 }
 
@@ -190,6 +240,13 @@ async function loadMaster() {
   state.masterSha = data.sha;
   const text = new TextDecoder("utf-8").decode(Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0)));
   $("masterEditor").value = text;
+  state.masterDirty = false;
+  if (state.selectedMaster === "category_rules.csv") {
+    state.categoryRulesLoaded = true;
+    state.categoryRulesSaved = true;
+    updateCategoryRulesState();
+  }
+  updateWizard();
   log(`マスターCSVを取得しました: ${path}`);
 }
 
@@ -206,7 +263,7 @@ function textToBase64(text) {
 async function saveMaster() {
   const path = `input/${state.selectedMaster}`;
   if (!state.masterSha) {
-    await loadMaster();
+    throw new Error("保存前にマスターCSVを取得してください。");
   }
   const content = textToBase64($("masterEditor").value);
   await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
@@ -220,10 +277,29 @@ async function saveMaster() {
     })
   });
   state.masterSha = null;
+  state.masterDirty = false;
+  if (state.selectedMaster === "category_rules.csv") {
+    state.categoryRulesLoaded = true;
+    state.categoryRulesSaved = true;
+    updateCategoryRulesState();
+  }
+  updateWizard();
   log(`マスターCSVを更新しました: ${path}`);
 }
 
 async function runWorkflow() {
+  if (!state.csvUploaded) {
+    const message = "STEP1実行前に、Amazon CSVを選択してinput/workingへアップロードしてください。";
+    alert(message);
+    log(message, "error");
+    return;
+  }
+  if (!state.categoryRulesLoaded || !state.categoryRulesSaved) {
+    const message = "STEP1実行前に、category_rules.csvを取得し、対象カテゴリのAllow/Denyルールを確認・保存してください。";
+    alert(message);
+    log(message, "error");
+    return;
+  }
   log("STEP1 workflowを実行します。");
   await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/dispatches`, {
     method: "POST",
@@ -241,6 +317,7 @@ function renderRun(run) {
   $("runConclusionText").textContent = run?.conclusion || "-";
   $("runCreatedText").textContent = run?.created_at ? new Date(run.created_at).toLocaleString("ja-JP") : "-";
   $("runLink").href = run?.html_url || "#";
+  updateWizard();
 }
 
 async function fetchLatestRun() {
@@ -338,6 +415,13 @@ function bindEvents() {
   $("refreshRunBtn").addEventListener("click", () => guard(fetchLatestRun));
   $("loadArtifactsBtn").addEventListener("click", () => guard(loadArtifacts));
   $("clearLogBtn").addEventListener("click", () => $("messageLog").textContent = "");
+  $("masterEditor").addEventListener("input", () => {
+    state.masterDirty = true;
+    if (state.selectedMaster === "category_rules.csv") {
+      state.categoryRulesSaved = false;
+      updateCategoryRulesState();
+    }
+  });
 
   $("csvInput").addEventListener("change", (event) => {
     const file = event.target.files?.[0];
@@ -366,8 +450,10 @@ function bindEvents() {
       tab.classList.add("active");
       state.selectedMaster = tab.dataset.master;
       state.masterSha = null;
+      state.masterDirty = false;
       $("masterEditor").value = "";
       log(`編集対象を切り替えました: ${state.selectedMaster}`);
+      updateWizard();
     });
   });
 }
@@ -382,3 +468,5 @@ async function guard(fn) {
 
 bindEvents();
 loadToken();
+updateCategoryRulesState();
+updateWizard();
