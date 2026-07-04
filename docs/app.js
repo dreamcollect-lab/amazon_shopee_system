@@ -268,7 +268,7 @@ function setSelectedFile(file) {
   $("fileNameText").textContent = file.name;
   $("categoryText").textContent = parsed.category;
   $("priceText").textContent = parsed.price;
-  $("fileSizeText").textContent = `${file.size.toLocaleString()} bytes`;
+  $("fileSizeText").textContent = formatKb(file.size);
   log(`CSVを選択しました: ${file.name}`);
   updateWizard();
 }
@@ -490,7 +490,7 @@ async function runWorkflow() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ref: CONFIG.branch})
   });
-  log("STEP1 workflow_dispatchを送信しました。数秒後に最新Runを取得してください。");
+  log("STEP1 workflow_dispatchを送信しました。完了まで自動で確認します。");
   state.artifactsLoaded = false;
   state.workflowRunning = true;
   state.workflowDispatchTime = Date.now();
@@ -529,7 +529,7 @@ function renderRun(run) {
 }
 
 async function fetchLatestRun(options = {}) {
-  if (!options.silent) log("Workflow状態を再確認しています。");
+  if (!options.silent) log("管理者操作によりWorkflow状態を再確認しています。");
   const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=10`);
   const run = selectWorkflowRun(data.workflow_runs);
   if (!run) {

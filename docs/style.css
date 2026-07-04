@@ -379,6 +379,21 @@ p {
   color: var(--accent-dark);
 }
 
+.admin-run-tools {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-run-tools summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin-run-tools p {
+  margin: 8px 0;
+}
+
 .hidden {
   display: none;
 }

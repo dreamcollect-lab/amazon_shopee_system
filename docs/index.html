@@ -144,8 +144,12 @@
           </div>
           <div class="actions">
             <button id="runWorkflowBtn" type="button">Run STEP1</button>
-            <button id="refreshRunBtn" type="button" class="secondary">状態を再確認</button>
           </div>
+          <details class="admin-run-tools">
+            <summary>管理者用</summary>
+            <p>通常業務では使用しません。Run状態を手動確認したい場合のみ使います。</p>
+            <button id="refreshRunBtn" type="button" class="secondary">状態を再確認</button>
+          </details>
           <div class="run-card">
             <div><span>Run ID</span><strong id="runIdText">-</strong></div>
             <div><span>Status</span><strong id="runStatusText">-</strong></div>
