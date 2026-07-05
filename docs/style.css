@@ -223,9 +223,8 @@ p {
 }
 
 .work-lock-panel {
-  max-width: 1180px;
-  min-width: 900px;
-  margin: 0 auto 18px;
+  width: 100%;
+  margin: 0 0 16px;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -239,8 +238,8 @@ p {
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  min-height: 40px;
-  padding: 7px 14px;
+  min-height: 38px;
+  padding: 6px 13px;
   font-weight: 900;
   list-style-position: inside;
 }

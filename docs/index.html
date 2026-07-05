@@ -93,25 +93,25 @@
           </div>
         </div>
 
-        <details id="workLockPanel" class="work-lock-panel" aria-label="現在の業務状態">
-          <summary>
-            <span id="workLockStatus">確認中</span>
-            <span id="workLockDetailHint" class="work-lock-detail-hint hidden">詳細 ▼</span>
-          </summary>
-          <div id="workLockDetails" class="work-lock-details">
-            <p class="work-lock-label">CSV</p>
-            <p id="workLockCsv" class="work-lock-value">確認中</p>
-            <p id="workLockUpdatedLabel" class="work-lock-label hidden">最終更新</p>
-            <p id="workLockUpdated" class="work-lock-value hidden">-</p>
-            <p id="workLockMessage" class="work-lock-message">input/working のCSV状態を確認しています。</p>
-            <div id="workLockActions" class="actions hidden">
-              <button id="continueCsvBtn" type="button" class="secondary">同じCSVで続行</button>
-              <button id="clearStaleCsvBtn" type="button" class="secondary danger-action">CSVクリアして次のカテゴリーへ</button>
-            </div>
-          </div>
-        </details>
-
         <section id="upload" class="work-panel active" data-view="upload">
+          <details id="workLockPanel" class="work-lock-panel" aria-label="現在の業務状態">
+            <summary>
+              <span id="workLockStatus">確認中</span>
+              <span id="workLockDetailHint" class="work-lock-detail-hint hidden">詳細 ▼</span>
+            </summary>
+            <div id="workLockDetails" class="work-lock-details">
+              <p class="work-lock-label">CSV</p>
+              <p id="workLockCsv" class="work-lock-value">確認中</p>
+              <p id="workLockUpdatedLabel" class="work-lock-label hidden">最終更新</p>
+              <p id="workLockUpdated" class="work-lock-value hidden">-</p>
+              <p id="workLockMessage" class="work-lock-message">input/working のCSV状態を確認しています。</p>
+              <div id="workLockActions" class="actions hidden">
+                <button id="continueCsvBtn" type="button" class="secondary">同じCSVで続行</button>
+                <button id="clearStaleCsvBtn" type="button" class="secondary danger-action">CSVクリアして次のカテゴリーへ</button>
+              </div>
+            </div>
+          </details>
+
           <div class="notice strong-notice">
             <strong>Amazon CSV確認 → ルール追加 → STEP1実行</strong>
             まずAmazon CSVをアップロードし、ファイル名・category候補・価格条件を確認します。
