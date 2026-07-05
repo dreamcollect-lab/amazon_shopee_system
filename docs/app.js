@@ -125,8 +125,10 @@ Amazon CSVの商品名・説明・カテゴリ情報を確認してください�
 
 CSV形式
 
-category,allow,xxxxx,contains,
-category,deny,xxxxx,contains,
+drippot,allow,xxxxx,contains,
+drippot,deny,xxxxx,contains,
+
+※drippot部分は、実際に「カテゴリー名」へ入力された値に置き換えてください。
 
 重要ルール：
 
@@ -135,6 +137,25 @@ SAFE混在ゼロを最優先
 価格条件は入れない
 
 カテゴリー名は指定されたものを使う
+
+CSV1列目には「カテゴリー名」へ入力された値をそのまま出力してください。
+
+"category"という文字列をCSV1列目へ出力してはいけません。
+
+例：
+
+入力
+
+カテゴリー名
+
+drippot
+
+↓
+
+CSV
+
+drippot,allow,ドリップポット,contains,
+drippot,deny,ケース,contains,
 
 最後に
 
@@ -186,13 +207,29 @@ OUT_DENY→Deny削除・弱体化・具体化
 
 CSV
 
-category,allow,xxxxx,contains,
-category,deny,xxxxx,contains,
+CSV1列目には「カテゴリー名」へ入力された値をそのまま出力してください。
+
+"category"という文字列をCSV1列目へ出力してはいけません。
+
+例：
+
+入力
+
+カテゴリー名
+
+drippot
+
+↓
+
+CSV
+
+drippot,allow,ドリップポット,contains,
+drippot,deny,ケース,contains,
 
 削除候補がある場合
 
 削除候補：
-category,deny,xxxxx,contains,
+drippot,deny,xxxxx,contains,
 
 理由：
 
@@ -564,6 +601,16 @@ function resetRunAndArtifactsState() {
   $("artifactList").innerHTML = "";
 }
 
+function resetReviewResultsState() {
+  state.latestArtifacts = [];
+  state.artifactsLoaded = false;
+  state.reviewAutoOpened = false;
+  const artifactList = $("artifactList");
+  artifactList.innerHTML = "";
+  artifactList.textContent = "STEP1を実行中です。成功後に新しいReview結果を自動表示します。";
+  updateWizard();
+}
+
 function resetWork() {
   resetRunAndArtifactsState();
   updateWizard();
@@ -681,6 +728,7 @@ async function runWorkflow() {
     log(message, "error");
     return;
   }
+  resetReviewResultsState();
   log("STEP1 workflowを実行します。");
   const previousRun = await fetchLatestWorkflowRun();
   const dispatchStartedAt = Date.now();
