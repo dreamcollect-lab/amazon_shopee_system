@@ -9233,3 +9233,7 @@ frontgrille,deny,Sticker,contains,
 frontgrille,deny,Decal,contains,
 frontgrille,deny,Bracket,contains,
 frontgrille,deny,Clip,contains,
+
+frontgrille,deny,インサート,contains,
+frontgrille,deny,Grille Insert,contains,
+frontgrille,deny,Grill Insert,contains,
