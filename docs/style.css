@@ -443,6 +443,10 @@ p {
   color: var(--accent-dark);
 }
 
+.next-category {
+  margin-top: 34px;
+}
+
 .admin-run-tools {
   margin-top: 12px;
   color: var(--muted);
