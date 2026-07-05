@@ -223,15 +223,25 @@ p {
 }
 
 .work-lock-panel {
-  display: grid;
-  gap: 8px;
   max-width: 1180px;
   min-width: 900px;
-  margin-bottom: 22px;
-  padding: 16px 18px;
+  margin-bottom: 12px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+  overflow: hidden;
+}
+
+.work-lock-panel summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 9px 14px;
+  font-weight: 900;
+  list-style-position: inside;
 }
 
 .work-lock-panel.available {
@@ -250,10 +260,16 @@ p {
   background: #fff7f7;
 }
 
-.work-lock-status {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 900;
+.work-lock-detail-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-lock-details {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
 }
 
 .work-lock-label,

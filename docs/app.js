@@ -470,6 +470,7 @@ function updateWorkLockPanel() {
   panel.classList.toggle("hidden", state.currentView !== "upload");
   if (state.currentView !== "upload") return;
   const statusEl = $("workLockStatus");
+  const detailHintEl = $("workLockDetailHint");
   const csvEl = $("workLockCsv");
   const updatedLabelEl = $("workLockUpdatedLabel");
   const updatedEl = $("workLockUpdated");
@@ -479,20 +480,24 @@ function updateWorkLockPanel() {
   const stale = isWorkingCsvStale();
   panel.classList.remove("available", "working", "running", "stale");
   actionsEl.classList.add("hidden");
+  detailHintEl.classList.add("hidden");
+  panel.open = false;
 
   if (running) {
     panel.classList.add("running");
     statusEl.textContent = "🔴 STEP1実行中";
+    detailHintEl.classList.remove("hidden");
     csvEl.textContent = state.workingCsv?.name || state.selectedFile?.name || "確認中";
     updatedLabelEl.classList.add("hidden");
     updatedEl.classList.add("hidden");
-    messageEl.textContent = "完了までCSV変更・Rule編集はできません。";
+    messageEl.textContent = "CSV変更\nRule編集\nできません";
     return;
   }
 
   if (state.workingCsv) {
     panel.classList.add(stale ? "stale" : "working");
     statusEl.textContent = stale ? "⚠ 前回作業が1時間以上更新されていません" : "🟡 前回作業が残っています";
+    detailHintEl.classList.remove("hidden");
     csvEl.textContent = state.workingCsv.name;
     updatedLabelEl.classList.remove("hidden");
     updatedEl.classList.remove("hidden");
