@@ -33,6 +33,14 @@
         </div>
       </details>
 
+      <section id="workLockPanel" class="work-lock-panel" aria-label="CSV作業状態">
+        <p id="workLockStatus" class="work-lock-status">確認中</p>
+        <p class="work-lock-line">現在のCSV：<strong id="workLockCsv">確認中</strong></p>
+        <p id="workLockUpdated" class="work-lock-line hidden">最終更新：<strong>-</strong></p>
+        <p id="workLockMessage" class="work-lock-message">input/working のCSV状態を確認しています。</p>
+        <button id="clearStaleCsvBtn" type="button" class="secondary danger-action hidden">放置CSVをクリアして開始</button>
+      </section>
+
       <nav class="flow-panel" aria-label="STEP1 業務フロー">
         <div class="flow-title">
           <span>STEP1</span>

@@ -4,7 +4,8 @@ const CONFIG = {
   branch: "main",
   workflow: "run_step1.yml",
   tokenKey: "amazonShopeeGithubPat",
-  lastUpdated: "2026/07/05"
+  lastUpdated: "2026/07/05",
+  staleCsvMs: 60 * 60 * 1000
 };
 
 const state = {
@@ -29,7 +30,9 @@ const state = {
   lastRunLogKey: "",
   completedRunId: null,
   previousRunId: null,
-  runNotFoundLogged: false
+  runNotFoundLogged: false,
+  workingCsv: null,
+  csvLockStatus: "unknown"
 };
 
 const VIEW_TITLES = {
@@ -395,7 +398,7 @@ function setActiveView(view) {
 
 function updateWizard() {
   const steps = {
-    stepUpload: Boolean(state.selectedFile && state.csvUploaded),
+    stepUpload: Boolean(state.csvUploaded),
     stepRules: state.categoryRulesLoaded,
     stepSave: state.categoryRulesLoaded && state.categoryRulesSaved,
     stepRun: Boolean(state.latestRun),
@@ -420,6 +423,8 @@ function updateWizard() {
   $("saveCsvState").textContent = state.csvUploaded ? "アップロード済み" : "未アップロード";
   updateAmazonCsvActions();
   updateRunNotice();
+  updateWorkLockPanel();
+  updateOperationLocks();
 }
 
 function updateAmazonCsvActions() {
@@ -427,6 +432,81 @@ function updateAmazonCsvActions() {
   $("uploadCsvBtn").classList.toggle("hidden", !hasSelection || state.csvUploaded);
   $("clearSelectedCsvBtn").classList.toggle("hidden", !hasSelection || state.csvUploaded);
   $("deleteUploadedCsvBtn").classList.toggle("hidden", !state.csvUploaded);
+}
+
+function isStep1Running() {
+  return state.workflowRunning || Boolean(state.latestRun && state.latestRun.status && state.latestRun.status !== "completed");
+}
+
+function isWorkingCsvStale() {
+  if (!state.workingCsv?.updatedAt) return false;
+  return Date.now() - new Date(state.workingCsv.updatedAt).getTime() >= CONFIG.staleCsvMs;
+}
+
+function updateOperationLocks() {
+  const running = isStep1Running();
+  const uploadBlocked = running || Boolean(state.workingCsv);
+  $("csvInput").disabled = uploadBlocked;
+  $("uploadCsvBtn").disabled = uploadBlocked;
+  $("clearSelectedCsvBtn").disabled = running;
+  $("deleteUploadedCsvBtn").disabled = running;
+  $("deleteCsvBtn").disabled = running;
+  $("saveMasterBtn").disabled = running;
+  $("saveMasterBtnMirror").disabled = running;
+  $("masterEditor").disabled = running;
+}
+
+function updateWorkLockPanel() {
+  const panel = $("workLockPanel");
+  if (!panel) return;
+  const statusEl = $("workLockStatus");
+  const csvEl = $("workLockCsv");
+  const updatedEl = $("workLockUpdated");
+  const messageEl = $("workLockMessage");
+  const staleButton = $("clearStaleCsvBtn");
+  const running = isStep1Running();
+  const stale = isWorkingCsvStale();
+  panel.classList.remove("available", "working", "running", "stale");
+  staleButton.classList.add("hidden");
+
+  if (running) {
+    panel.classList.add("running");
+    statusEl.textContent = "🔴 STEP1実行中";
+    csvEl.textContent = state.workingCsv?.name || state.selectedFile?.name || "確認中";
+    updatedEl.classList.toggle("hidden", !state.workingCsv?.updatedAt);
+    updatedEl.querySelector("strong").textContent = state.workingCsv?.updatedAt ? formatDateTime(state.workingCsv.updatedAt) : "-";
+    messageEl.textContent = "現在STEP1を実行中です。完了までCSV変更・Rule編集はできません。";
+    return;
+  }
+
+  if (state.workingCsv) {
+    panel.classList.add(stale ? "stale" : "working");
+    statusEl.textContent = stale ? "⚠ CSV作業中" : "🟡 CSV作業中";
+    csvEl.textContent = state.workingCsv.name;
+    updatedEl.classList.remove("hidden");
+    updatedEl.querySelector("strong").textContent = state.workingCsv.updatedAt ? formatDateTime(state.workingCsv.updatedAt) : "-";
+    messageEl.textContent = stale
+      ? "CSV作業中ですが、最終更新から1時間以上経過しています。前作業者がCSVクリアを忘れた可能性があります。別カテゴリーを始める場合は、CSVをクリアして開始してください。"
+      : "作業完了時は必ず「今回のCSVをクリアして次のカテゴリーへ」を押してください。";
+    staleButton.classList.toggle("hidden", !stale);
+    return;
+  }
+
+  panel.classList.add("available");
+  statusEl.textContent = "🟢 作業可能";
+  csvEl.textContent = "なし";
+  updatedEl.classList.add("hidden");
+  messageEl.textContent = "input/working にCSVはありません。新しいCSVをアップロードできます。";
+}
+
+function formatDateTime(value) {
+  return new Date(value).toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function saveToken() {
@@ -439,6 +519,8 @@ function saveToken() {
   state.token = token;
   updateTokenState();
   log("PATをLocalStorageへ保存しました。");
+  guard(() => refreshCsvLockState({silent: true}));
+  guard(refreshInitialRunState);
 }
 
 function loadToken() {
@@ -521,6 +603,10 @@ function encodeURIComponentPath(path) {
 }
 
 async function uploadCsv() {
+  if (isStep1Running()) {
+    log("STEP1実行中のため、Amazon CSVアップロードはできません。", "error");
+    return;
+  }
   if (!state.selectedFile) {
     log("Amazon CSVが選択されていません。", "error");
     return;
@@ -531,6 +617,13 @@ async function uploadCsv() {
   }
 
   const path = `input/working/${state.selectedFile.name}`;
+  await refreshCsvLockState({silent: true});
+  if (state.workingCsv && state.workingCsv.path !== path) {
+    const message = "現在CSV作業中です。別カテゴリーを始める場合は、先にCSVクリアを行ってください。";
+    alert(message);
+    log(message, "error");
+    return;
+  }
   log(`アップロード準備中: ${path}`);
   const buffer = await state.selectedFile.arrayBuffer();
   const content = arrayBufferToBase64(buffer);
@@ -549,10 +642,18 @@ async function uploadCsv() {
   });
   state.csvUploaded = true;
   state.currentAmazonPath = path;
+  state.workingCsv = {
+    name: state.selectedFile.name,
+    path,
+    sha: null,
+    size: state.selectedFile.size,
+    updatedAt: new Date().toISOString()
+  };
   state.artifactsLoaded = false;
   state.workflowRunning = false;
   $("fileState").textContent = "アップロード済み";
   $("fileState").classList.add("ok");
+  await refreshCsvLockState({silent: true});
   updateWizard();
   log(`Amazon CSVをアップロードしました: ${path}`);
   setActiveView("rules");
@@ -618,11 +719,17 @@ function resetWork() {
 }
 
 async function deleteCurrentCsv() {
+  if (isStep1Running()) {
+    log("STEP1実行中のため、CSVクリアはできません。", "error");
+    return;
+  }
   const files = await listWorkingCsvFiles();
   if (!files.length) {
     log("input/working に削除対象のAmazon CSVがありません。", "error");
     resetAmazonCsvState();
     resetRunAndArtifactsState();
+    state.workingCsv = null;
+    state.csvLockStatus = "available";
     updateWizard();
     setActiveView("upload");
     return;
@@ -640,6 +747,8 @@ async function deleteCurrentCsv() {
   }
   resetAmazonCsvState();
   resetRunAndArtifactsState();
+  state.workingCsv = null;
+  state.csvLockStatus = "available";
   updateWizard();
   setActiveView("upload");
   log(`今回のCSVをクリアしました: ${files.map((file) => file.path).join(", ")}`);
@@ -648,12 +757,54 @@ async function deleteCurrentCsv() {
 async function listWorkingCsvFiles() {
   try {
     const data = await githubFetch(`/contents/${encodeURIComponentPath("input/working")}?ref=${encodeURIComponent(CONFIG.branch)}`);
-    return (Array.isArray(data) ? data : [])
+    const files = (Array.isArray(data) ? data : [])
       .filter((item) => item.type === "file" && item.name.toLowerCase().endsWith(".csv"))
-      .map((item) => ({path: item.path, sha: item.sha}));
+      .map((item) => ({name: item.name, path: item.path, sha: item.sha, size: item.size || 0, updatedAt: null}));
+    for (const file of files) {
+      file.updatedAt = await fetchLatestPathUpdatedAt(file.path);
+    }
+    return files.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
   } catch (error) {
     if (String(error.message).includes("404")) return [];
     throw error;
+  }
+}
+
+async function fetchLatestPathUpdatedAt(path) {
+  try {
+    const data = await githubFetch(`/commits?path=${encodeURIComponent(path)}&sha=${encodeURIComponent(CONFIG.branch)}&per_page=1`);
+    return data?.[0]?.commit?.committer?.date || data?.[0]?.commit?.author?.date || null;
+  } catch (error) {
+    log(`${path} の最終更新取得に失敗しました: ${error.message || String(error)}`, "error");
+    return null;
+  }
+}
+
+async function refreshCsvLockState(options = {}) {
+  if (!state.token && !$("tokenInput").value.trim()) {
+    updateWorkLockPanel();
+    return;
+  }
+  const files = await listWorkingCsvFiles();
+  const file = files[0] || null;
+  state.workingCsv = file;
+  state.csvLockStatus = file ? "working" : "available";
+  if (file) {
+    state.csvUploaded = true;
+    state.currentAmazonPath = file.path;
+    const parsed = parseAmazonFilename(file.name);
+    $("fileNameText").textContent = file.name;
+    $("categoryText").textContent = parsed.category;
+    $("priceText").textContent = parsed.price;
+    $("fileSizeText").textContent = formatKb(file.size);
+    $("fileState").textContent = "アップロード済み";
+    $("fileState").classList.add("ok");
+  } else if (!state.selectedFile) {
+    resetAmazonCsvState();
+  }
+  updateWizard();
+  if (!options.silent) {
+    log(file ? `CSV作業状態を確認しました: ${file.name}` : "CSV作業状態を確認しました: 作業可能");
   }
 }
 
@@ -687,6 +838,9 @@ function textToBase64(text) {
 }
 
 async function saveMaster() {
+  if (isStep1Running()) {
+    throw new Error("STEP1実行中のため、Rule編集保存はできません。完了後に保存してください。");
+  }
   const path = `input/${state.selectedMaster}`;
   if (!state.masterSha) {
     throw new Error("保存前にマスターCSVを取得してください。");
@@ -761,6 +915,15 @@ async function runWorkflow() {
 async function fetchLatestWorkflowRun() {
   const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=1`);
   return data.workflow_runs?.[0] || null;
+}
+
+async function refreshInitialRunState() {
+  if (!state.token && !$("tokenInput").value.trim()) return;
+  const run = await fetchLatestWorkflowRun();
+  if (!run || run.status === "completed") return;
+  renderRun(run);
+  startRunPolling();
+  log(`実行中のSTEP1 Runを検出しました: ${run.id}`);
 }
 
 function startRunPolling() {
@@ -1240,6 +1403,7 @@ function bindEvents() {
   $("clearSelectedCsvBtn").addEventListener("click", clearSelectedCsv);
   $("deleteUploadedCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
   $("deleteCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
+  $("clearStaleCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
   $("saveMasterBtn").addEventListener("click", () => guard(saveMaster));
   $("saveMasterBtnMirror").addEventListener("click", () => guard(saveMaster));
@@ -1267,6 +1431,11 @@ function bindEvents() {
   });
 
   $("csvInput").addEventListener("change", (event) => {
+    if (state.workingCsv || isStep1Running()) {
+      log("現在CSV作業中またはSTEP1実行中のため、別CSVは選択できません。", "error");
+      $("csvInput").value = "";
+      return;
+    }
     const file = event.target.files?.[0];
     if (file) setSelectedFile(file);
   });
@@ -1280,6 +1449,10 @@ function bindEvents() {
   dropZone.addEventListener("drop", (event) => {
     event.preventDefault();
     dropZone.classList.remove("dragover");
+    if (state.workingCsv || isStep1Running()) {
+      log("現在CSV作業中またはSTEP1実行中のため、別CSVは選択できません。", "error");
+      return;
+    }
     const file = event.dataTransfer.files?.[0];
     if (file) {
       $("csvInput").files = event.dataTransfer.files;
@@ -1315,3 +1488,5 @@ loadToken();
 updateCategoryRulesState();
 setActiveView("upload");
 updateWizard();
+guard(() => refreshCsvLockState({silent: true}));
+guard(refreshInitialRunState);

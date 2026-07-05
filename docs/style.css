@@ -222,6 +222,48 @@ p {
   line-height: 1.5;
 }
 
+.work-lock-panel {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.work-lock-panel.available {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.work-lock-panel.working {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.work-lock-panel.running,
+.work-lock-panel.stale {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.work-lock-status {
+  margin: 0;
+  font-weight: 900;
+}
+
+.work-lock-line,
+.work-lock-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.work-lock-line strong {
+  color: var(--text);
+}
+
 .flow-panel {
   display: grid;
   gap: 8px;
