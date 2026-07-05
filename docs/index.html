@@ -118,7 +118,14 @@
           </div>
           <div class="info-grid">
             <div><span>ファイル名</span><strong id="fileNameText">-</strong></div>
-            <div><span>category候補</span><strong id="categoryText">-</strong></div>
+            <div>
+              <span>category候補</span>
+              <div class="copy-row">
+                <strong id="categoryText">-</strong>
+                <button id="copyCategoryBtn" type="button" class="secondary small-copy hidden">コピー</button>
+              </div>
+              <p id="categoryCopyState" class="copy-inline hidden">カテゴリ候補をコピーしました</p>
+            </div>
             <div><span>価格条件</span><strong id="priceText">-</strong></div>
             <div><span>状態</span><strong id="fileState">未選択</strong></div>
           </div>

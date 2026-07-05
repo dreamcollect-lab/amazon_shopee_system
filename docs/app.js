@@ -432,6 +432,13 @@ function updateAmazonCsvActions() {
   $("uploadCsvBtn").classList.toggle("hidden", !hasSelection || state.csvUploaded);
   $("clearSelectedCsvBtn").classList.toggle("hidden", !hasSelection || state.csvUploaded);
   $("deleteUploadedCsvBtn").classList.toggle("hidden", !state.csvUploaded);
+  updateCategoryCopyButton();
+}
+
+function updateCategoryCopyButton() {
+  const value = $("categoryText").textContent.trim();
+  $("copyCategoryBtn").classList.toggle("hidden", !value || value === "-");
+  if (!value || value === "-") $("categoryCopyState").classList.add("hidden");
 }
 
 function isStep1Running() {
@@ -1261,6 +1268,23 @@ async function copyRevisionPrompt() {
   log("プロンプトをコピーしました");
 }
 
+async function copyCategoryCandidate() {
+  const category = $("categoryText").textContent.trim();
+  if (!category || category === "-") return;
+  const stateEl = $("categoryCopyState");
+  try {
+    await copyPrompt(category);
+    stateEl.textContent = "カテゴリ候補をコピーしました";
+    stateEl.classList.remove("hidden", "error");
+    log("カテゴリ候補をコピーしました");
+  } catch {
+    stateEl.textContent = "コピーできませんでした。手動で選択してください";
+    stateEl.classList.remove("hidden");
+    stateEl.classList.add("error");
+    log("コピーできませんでした。手動で選択してください", "error");
+  }
+}
+
 function showPromptCopyMessage() {
   const message = $("promptCopyState");
   if (!message) return;
@@ -1411,6 +1435,7 @@ function bindEvents() {
 
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
+  $("copyCategoryBtn").addEventListener("click", () => guard(copyCategoryCandidate));
   $("uploadCsvBtn").addEventListener("click", () => guard(uploadCsv));
   $("clearSelectedCsvBtn").addEventListener("click", clearSelectedCsv);
   $("deleteUploadedCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
