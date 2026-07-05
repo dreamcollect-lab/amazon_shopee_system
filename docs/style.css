@@ -224,8 +224,11 @@ p {
 
 .work-lock-panel {
   display: grid;
-  gap: 7px;
-  padding: 12px;
+  gap: 8px;
+  max-width: 1180px;
+  min-width: 900px;
+  margin-bottom: 22px;
+  padding: 16px 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -249,19 +252,32 @@ p {
 
 .work-lock-status {
   margin: 0;
+  font-size: 18px;
   font-weight: 900;
 }
 
-.work-lock-line,
+.work-lock-label,
+.work-lock-value,
 .work-lock-message {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
   line-height: 1.45;
 }
 
-.work-lock-line strong {
+.work-lock-label {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-lock-value {
   color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.work-lock-message {
+  white-space: pre-line;
+  font-size: 14px;
 }
 
 .flow-panel {

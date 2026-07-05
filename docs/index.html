@@ -33,14 +33,6 @@
         </div>
       </details>
 
-      <section id="workLockPanel" class="work-lock-panel" aria-label="CSV作業状態">
-        <p id="workLockStatus" class="work-lock-status">確認中</p>
-        <p class="work-lock-line">現在のCSV：<strong id="workLockCsv">確認中</strong></p>
-        <p id="workLockUpdated" class="work-lock-line hidden">最終更新：<strong>-</strong></p>
-        <p id="workLockMessage" class="work-lock-message">input/working のCSV状態を確認しています。</p>
-        <button id="clearStaleCsvBtn" type="button" class="secondary danger-action hidden">放置CSVをクリアして開始</button>
-      </section>
-
       <nav class="flow-panel" aria-label="STEP1 業務フロー">
         <div class="flow-title">
           <span>STEP1</span>
@@ -100,6 +92,20 @@
             <span id="workState" class="state-pill">作業中</span>
           </div>
         </div>
+
+        <section id="workLockPanel" class="work-lock-panel" aria-label="現在の業務状態">
+          <p class="work-lock-label">現在の状態</p>
+          <p id="workLockStatus" class="work-lock-status">確認中</p>
+          <p class="work-lock-label">CSV</p>
+          <p id="workLockCsv" class="work-lock-value">確認中</p>
+          <p id="workLockUpdatedLabel" class="work-lock-label hidden">最終更新</p>
+          <p id="workLockUpdated" class="work-lock-value hidden">-</p>
+          <p id="workLockMessage" class="work-lock-message">input/working のCSV状態を確認しています。</p>
+          <div id="workLockActions" class="actions hidden">
+            <button id="continueCsvBtn" type="button" class="secondary">同じCSVで続行</button>
+            <button id="clearStaleCsvBtn" type="button" class="secondary danger-action">CSVクリアして次のカテゴリーへ</button>
+          </div>
+        </section>
 
         <section id="upload" class="work-panel active" data-view="upload">
           <div class="notice strong-notice">

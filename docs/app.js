@@ -461,42 +461,45 @@ function updateWorkLockPanel() {
   if (!panel) return;
   const statusEl = $("workLockStatus");
   const csvEl = $("workLockCsv");
+  const updatedLabelEl = $("workLockUpdatedLabel");
   const updatedEl = $("workLockUpdated");
   const messageEl = $("workLockMessage");
-  const staleButton = $("clearStaleCsvBtn");
+  const actionsEl = $("workLockActions");
   const running = isStep1Running();
   const stale = isWorkingCsvStale();
   panel.classList.remove("available", "working", "running", "stale");
-  staleButton.classList.add("hidden");
+  actionsEl.classList.add("hidden");
 
   if (running) {
     panel.classList.add("running");
     statusEl.textContent = "🔴 STEP1実行中";
     csvEl.textContent = state.workingCsv?.name || state.selectedFile?.name || "確認中";
-    updatedEl.classList.toggle("hidden", !state.workingCsv?.updatedAt);
-    updatedEl.querySelector("strong").textContent = state.workingCsv?.updatedAt ? formatDateTime(state.workingCsv.updatedAt) : "-";
-    messageEl.textContent = "現在STEP1を実行中です。完了までCSV変更・Rule編集はできません。";
+    updatedLabelEl.classList.add("hidden");
+    updatedEl.classList.add("hidden");
+    messageEl.textContent = "完了までCSV変更・Rule編集はできません。";
     return;
   }
 
   if (state.workingCsv) {
     panel.classList.add(stale ? "stale" : "working");
-    statusEl.textContent = stale ? "⚠ CSV作業中" : "🟡 CSV作業中";
+    statusEl.textContent = stale ? "⚠ 前回作業が1時間以上更新されていません" : "🟡 前回作業が残っています";
     csvEl.textContent = state.workingCsv.name;
+    updatedLabelEl.classList.remove("hidden");
     updatedEl.classList.remove("hidden");
-    updatedEl.querySelector("strong").textContent = state.workingCsv.updatedAt ? formatDateTime(state.workingCsv.updatedAt) : "-";
+    updatedEl.textContent = state.workingCsv.updatedAt ? formatDateTime(state.workingCsv.updatedAt) : "-";
     messageEl.textContent = stale
-      ? "CSV作業中ですが、最終更新から1時間以上経過しています。前作業者がCSVクリアを忘れた可能性があります。別カテゴリーを始める場合は、CSVをクリアして開始してください。"
-      : "作業完了時は必ず「今回のCSVをクリアして次のカテゴリーへ」を押してください。";
-    staleButton.classList.toggle("hidden", !stale);
+      ? "CSVクリア忘れの可能性があります。\n別カテゴリーを始める場合は\nCSVクリアを行ってください。"
+      : "同じカテゴリーなら続行してください。\n別カテゴリーの場合は\nCSVクリアを行ってください。";
+    actionsEl.classList.remove("hidden");
     return;
   }
 
   panel.classList.add("available");
   statusEl.textContent = "🟢 作業可能";
   csvEl.textContent = "なし";
+  updatedLabelEl.classList.add("hidden");
   updatedEl.classList.add("hidden");
-  messageEl.textContent = "input/working にCSVはありません。新しいCSVをアップロードできます。";
+  messageEl.textContent = "";
 }
 
 function formatDateTime(value) {
@@ -678,6 +681,15 @@ function clearSelectedCsv() {
   updateWizard();
   setActiveView("upload");
   log("選択中のCSVをクリアしました。GitHub上のファイルは変更していません。");
+}
+
+function continueCurrentCsv() {
+  if (!state.workingCsv) {
+    setActiveView("upload");
+    return;
+  }
+  log(`同じCSVで作業を続行します: ${state.workingCsv.name}`);
+  setActiveView("rules");
 }
 
 function resetRunAndArtifactsState() {
@@ -1403,6 +1415,7 @@ function bindEvents() {
   $("clearSelectedCsvBtn").addEventListener("click", clearSelectedCsv);
   $("deleteUploadedCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
   $("deleteCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
+  $("continueCsvBtn").addEventListener("click", continueCurrentCsv);
   $("clearStaleCsvBtn").addEventListener("click", () => guard(deleteCurrentCsv));
   $("loadMasterBtn").addEventListener("click", () => guard(loadMaster));
   $("saveMasterBtn").addEventListener("click", () => guard(saveMaster));
