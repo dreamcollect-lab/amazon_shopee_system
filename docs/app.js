@@ -394,6 +394,7 @@ function setActiveView(view) {
   $("workState").textContent = "作業中";
   updateSupportPrompts();
   updateWizard();
+  if (view === "upload") guard(() => refreshCsvLockState({silent: true}));
 }
 
 function updateWizard() {
@@ -466,6 +467,8 @@ function updateOperationLocks() {
 function updateWorkLockPanel() {
   const panel = $("workLockPanel");
   if (!panel) return;
+  panel.classList.toggle("hidden", state.currentView !== "upload");
+  if (state.currentView !== "upload") return;
   const statusEl = $("workLockStatus");
   const csvEl = $("workLockCsv");
   const updatedLabelEl = $("workLockUpdatedLabel");
