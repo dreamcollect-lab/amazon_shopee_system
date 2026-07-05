@@ -72,6 +72,7 @@
           <span>③ 例</span>
         </div>
         <button type="button" class="sidebar-support-button flow-jump" data-view="allow-deny-support">Allow/Deny判定支援</button>
+        <button type="button" class="sidebar-support-button secondary flow-jump" data-view="amazon-csv-support">Amazon CSV補助設定</button>
       </div>
 
       <div class="sidebar-footer">
@@ -296,6 +297,78 @@ dripkettle,deny,セット,contains,</pre>
           <div class="actions">
             <button type="button" class="flow-jump" data-view="rules">Rule編集へ戻る</button>
             <button type="button" class="secondary flow-jump" data-view="improve">⑥ Rule改善へ戻る</button>
+          </div>
+        </section>
+
+        <section class="work-panel" data-view="amazon-csv-support">
+          <div class="notice">
+            <strong>Amazon CSV補助設定</strong>
+            Amazon CSVのファイル名から category と価格条件を自動判定します。価格条件はAllow/Denyには入れず、ファイル名で指定します。
+          </div>
+
+          <div class="support-card">
+            <div class="support-table-wrap">
+              <table class="support-table">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>パターン</th>
+                    <th>ファイル名例</th>
+                    <th>category</th>
+                    <th>価格条件</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>通常</td>
+                    <td><code>dripkettle_20260705.csv</code></td>
+                    <td><code>dripkettle</code></td>
+                    <td>なし</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>通常（アンダースコア複数）</td>
+                    <td><code>coffee_drip_kettle_20260705.csv</code></td>
+                    <td><code>coffee_drip_kettle</code></td>
+                    <td>なし</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td>下限・上限指定</td>
+                    <td><code>dripkettle@3000-10000_20260705.csv</code></td>
+                    <td><code>dripkettle</code></td>
+                    <td>3,000～10,000円</td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td>下限のみ</td>
+                    <td><code>dripkettle@3000-_20260705.csv</code></td>
+                    <td><code>dripkettle</code></td>
+                    <td>3,000円以上</td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td>上限のみ</td>
+                    <td><code>dripkettle@-10000_20260705.csv</code></td>
+                    <td><code>dripkettle</code></td>
+                    <td>10,000円以下</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="review-loop">
+            <div>日付部分は末尾の <code>_YYYYMMDD</code> として扱う</div>
+            <div>category は日付より前の文字列から判定する</div>
+            <div>価格条件は <code>@</code> の後ろで指定する</div>
+            <div>価格条件は <code>category_rules.csv</code> には入れない</div>
+            <div>Allow/Denyは商品種別の判定、価格条件はファイル名での判定として分ける</div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="flow-jump" data-view="upload">Amazon CSVアップロードへ戻る</button>
           </div>
         </section>
       </section>

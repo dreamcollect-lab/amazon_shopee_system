@@ -1,5 +1,6 @@
 # Current Status
 
+- STEP1 Web UI beta is complete. From this point, the UI should be adjusted through real operation feedback.
 - Local GitHub development folder exists at `C:\Users\uedar\amazon_shopee_system_github`.
 - This GitHub development version is the development and operation source of truth going forward.
 - GitHub is the source of truth for collaborative development and operation, not a permanent archive.
@@ -83,6 +84,21 @@
 - Right side shows only the currently selected work area so staff can focus on the active operation.
 - Bottom status console aggregates execution results, errors, GitHub API results, and Workflow state.
 - This layout is intended to be reused when STEP2, STEP3, STEP4, and AI review are added later.
+
+## STEP1 Web UI Beta Complete
+
+- GitHub Pages Web UI is available under `docs/`.
+- GitHub Actions runs STEP1 through `run_step1.yml`.
+- PAT is stored in LocalStorage for staff usability.
+- Amazon CSV upload is available from the Web UI.
+- `category_rules.csv`, `ng_master.csv`, and `shopee_existing_asin.csv` can be fetched and edited from the Web UI.
+- STEP1 can be executed from the Web UI.
+- Review flow is available.
+- SAFE / CHECK / OUT_DENY / other ZIP output can be reviewed and downloaded.
+- Rule improvement flow is available.
+- Allow/Deny judgment support is available as an external AI prompt helper.
+- Amazon CSV filename support settings are available.
+- Current state is beta complete; future work should be fine-tuning through real operation.
 
 ## Judgment And Review Order
 

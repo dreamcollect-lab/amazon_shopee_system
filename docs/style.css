@@ -660,6 +660,37 @@ p {
   color: var(--muted);
 }
 
+.support-table-wrap {
+  overflow: auto;
+}
+
+.support-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.support-table th,
+.support-table td {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.support-table th {
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.support-table code,
+.review-loop code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+}
+
 .copy-state {
   border: 1px solid #bbf7d0;
   border-radius: 6px;

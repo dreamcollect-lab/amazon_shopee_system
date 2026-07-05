@@ -39,7 +39,8 @@ const VIEW_TITLES = {
   run: "STEP1実行",
   review: "Review",
   improve: "Rule改善・再実行",
-  "allow-deny-support": "Allow / Deny 判定支援"
+  "allow-deny-support": "Allow / Deny 判定支援",
+  "amazon-csv-support": "Amazon CSV補助設定"
 };
 
 const INITIAL_RULE_PROMPT = `==============================

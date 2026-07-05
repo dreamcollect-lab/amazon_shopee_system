@@ -2,6 +2,7 @@
 
 ## Current Position
 
+- STEP1 Web UI beta is complete. Future updates should be based on real operation feedback.
 - Project folder: `C:\Users\uedar\amazon_shopee_system_github`
 - This folder is the GitHub development and operation source of truth candidate.
 - GitHub is the source of truth for collaborative development and operation, not a permanent archive.
@@ -32,6 +33,21 @@
 - The UI now uses a fixed left business flow, a focused right work area, and a bottom status console.
 - Standard UI flow is Amazon CSV upload -> category_rules.csv editing -> master save -> STEP1 execution -> Review -> Rule improvement and rerun.
 - This Phase7 shell should be reused when STEP2, STEP3, STEP4, and AI review are added.
+
+## STEP1 Web UI Beta Complete
+
+- GitHub Pages Web UI is implemented.
+- GitHub Actions STEP1 execution is implemented.
+- PAT LocalStorage save/load is implemented.
+- Amazon CSV upload is implemented.
+- `category_rules.csv`, `ng_master.csv`, and `shopee_existing_asin.csv` editing is implemented.
+- STEP1 execution from the Web UI is implemented.
+- Review is implemented.
+- SAFE / CHECK / OUT_DENY / other ZIP output is implemented.
+- Rule improvement is implemented.
+- Allow/Deny judgment support is implemented as an external AI prompt helper.
+- Amazon CSV support settings are implemented.
+- Current state is beta complete; future work should fine-tune the UI while using it in real operation.
 
 ## Important Files
 
