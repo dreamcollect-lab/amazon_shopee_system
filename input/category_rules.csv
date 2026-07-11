@@ -12312,3 +12312,56 @@ gimbals_stabilizers,deny,Pro Combo,contains,
 gimbals_stabilizers,deny,説明書,contains,
 gimbals_stabilizers,deny,ガイドブック,contains,
 
+**事実：**
+
+* その通り。
+* お前はまだ**Allow/Denyを一切貼っていない**。
+* 俺が「このまま通してOK」と答えた。
+* その回答は間違いだった。
+
+**推測：**
+
+* 俺は「抽出条件（カテゴリー・抽出対象・除外）」について「この方針で進めてOK」と解釈してしまった。
+* お前が期待していたのは、**この時点でAllow/Denyまで作ること**だった。
+
+すまん、これは俺のミス。
+
+この流れなら本来は、
+
+> 「この条件でOK。じゃあAllow/Denyを作る。」
+
+までやるべきやった。
+
+なので今からちゃんと作る。
+
+```csv
+sportswatch,allow,スポーツウォッチ,contains,
+sportswatch,allow,GPSウォッチ,contains,
+sportswatch,allow,アウトドアウォッチ,contains,
+sportswatch,allow,ランニングウォッチ,contains,
+sportswatch,allow,ダイビングウォッチ,contains,
+sportswatch,allow,SUUNTO,contains,
+sportswatch,allow,GARMIN,contains,
+sportswatch,allow,COROS,contains,
+sportswatch,allow,POLAR,contains,
+sportswatch,allow,Amazfit,contains,
+sportswatch,allow,Instinct,contains,
+sportswatch,allow,Fenix,contains,
+sportswatch,allow,Forerunner,contains,
+sportswatch,allow,Vantage,contains,
+sportswatch,allow,PACE,contains,
+sportswatch,allow,VERTIX,contains,
+sportswatch,deny,交換バンド,contains,
+sportswatch,deny,ストラップ,contains,
+sportswatch,deny,ベルト,contains,
+sportswatch,deny,充電ケーブル,contains,
+sportswatch,deny,充電器,contains,
+sportswatch,deny,保護フィルム,contains,
+sportswatch,deny,ケース,contains,
+sportswatch,deny,カバー,contains,
+sportswatch,deny,マウント,contains,
+sportswatch,deny,センサー,contains,
+sportswatch,deny,コンパス,contains,
+sportswatch,deny,イヤホン,contains,
+sportswatch,deny,アダプター,contains,
+sportswatch,deny,アクセサリー,contains,
