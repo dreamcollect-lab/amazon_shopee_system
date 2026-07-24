@@ -16332,4 +16332,4 @@ actionfigurines,deny,VS,contains,
 actionfigurines,deny,vs,contains,
 actionfigurines,deny,John Connor,contains,
 
-swimmingattireothers,deny,Speedo,contains,
+swimmingattireothers,allow,水着,contains,
