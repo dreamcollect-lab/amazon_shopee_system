@@ -16333,3 +16333,6 @@ actionfigurines,deny,vs,contains,
 actionfigurines,deny,John Connor,contains,
 
 swimmingattireothers,allow,水着,contains,
+swimmingattireothers,deny,ミズノ,contains,
+swimmingattireothers,deny,MIZUNO(ミズノ),contains,
+swimmingattireothers,deny,MIZUNO-,contains,
