@@ -16889,3 +16889,12 @@ wirelessspeakers,deny,(× 2),contains,
 wirelessspeakers,deny,(× 3),contains,
 wirelessspeakers,deny,テレビ用,contains,
 wirelessspeakers,deny,手元スピーカー,contains,
+
+bathbrushesloofahs,allow,キクロン,contains,
+bathbrushesloofahs,allow,Kikulon,contains,
+bathbrushesloofahs,allow,ボディタオル,contains,
+bathbrushesloofahs,allow,アワスター,contains,
+bathbrushesloofahs,allow,あわざわり,contains,
+
+bathbrushesloofahs,deny,バルクオム,contains,
+bathbrushesloofahs,deny,ルーネシモ,contains,
