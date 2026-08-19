@@ -253,6 +253,28 @@ SAFE混在ゼロ最優先
 
 const $ = (id) => document.getElementById(id);
 
+const INVALID_PAT_MESSAGE = "保存されたPATの形式が不正です。設定からPATを保存し直してください。";
+
+function normalizeGithubToken(value) {
+  return String(value || "").trim().replace(/[\r\n]/g, "").trim();
+}
+
+function isValidGithubToken(token) {
+  return Boolean(token) && /^[\x21-\x7E]+$/.test(token);
+}
+
+function assertValidGithubToken(token) {
+  if (!isValidGithubToken(token)) throw new Error(INVALID_PAT_MESSAGE);
+}
+
+function assertAsciiHeaderValues(headers) {
+  for (const value of Object.values(headers)) {
+    if (!/^[\x20-\x7E]*$/.test(String(value))) {
+      throw new Error(INVALID_PAT_MESSAGE);
+    }
+  }
+}
+
 function apiUrl(path) {
   return `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}${path}`;
 }
@@ -264,22 +286,34 @@ function log(message, type = "info") {
 }
 
 function getToken() {
-  const token = $("tokenInput").value.trim() || state.token;
+  const inputToken = normalizeGithubToken($("tokenInput").value);
+  const token = inputToken || normalizeGithubToken(state.token);
   if (!token) throw new Error("PATが未保存です。初回のみPATを貼り付けてPATを保存してください。");
+  assertValidGithubToken(token);
   return token;
 }
 
-async function githubFetch(path, options = {}) {
+function createGithubHeaders(additionalHeaders = {}) {
   const token = getToken();
   const headers = {
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "Authorization": `Bearer ${token}`,
-    ...(options.headers || {})
+    "Authorization": `Bearer ${token}`
   };
 
+  for (const [name, value] of Object.entries(additionalHeaders)) {
+    if (value !== undefined && value !== null) headers[name] = String(value);
+  }
+  assertAsciiHeaderValues(headers);
+  return headers;
+}
+
+async function githubFetch(path, options = {}) {
+  const {headers: additionalHeaders, ...requestOptions} = options;
+  const headers = createGithubHeaders(additionalHeaders);
+
   const response = await fetch(apiUrl(path), {
-    ...options,
+    ...requestOptions,
     headers
   });
 
@@ -299,7 +333,8 @@ async function githubFetch(path, options = {}) {
 }
 
 function updateTokenState() {
-  const saved = Boolean(localStorage.getItem(CONFIG.tokenKey));
+  const savedToken = normalizeGithubToken(localStorage.getItem(CONFIG.tokenKey));
+  const saved = isValidGithubToken(savedToken);
   $("tokenState").textContent = saved ? "保存済み" : "未保存";
   $("tokenState").classList.toggle("ok", saved);
   $("tokenInput").classList.toggle("needs-input", !saved);
@@ -528,11 +563,16 @@ function formatDateTime(value) {
 }
 
 function saveToken() {
-  const token = $("tokenInput").value.trim();
+  const token = normalizeGithubToken($("tokenInput").value);
   if (!token) {
     log("保存するPATが入力されていません。", "error");
     return;
   }
+  if (!isValidGithubToken(token)) {
+    log(INVALID_PAT_MESSAGE, "error");
+    return;
+  }
+  $("tokenInput").value = token;
   localStorage.setItem(CONFIG.tokenKey, token);
   state.token = token;
   updateTokenState();
@@ -542,11 +582,21 @@ function saveToken() {
 }
 
 function loadToken() {
-  const token = localStorage.getItem(CONFIG.tokenKey) || "";
+  const savedToken = localStorage.getItem(CONFIG.tokenKey) || "";
+  const token = normalizeGithubToken(savedToken);
   $("tokenInput").value = token;
   state.token = token;
+  if (token && isValidGithubToken(token) && token !== savedToken) {
+    localStorage.setItem(CONFIG.tokenKey, token);
+  }
   updateTokenState();
-  log(token ? "保存済みPATを自動読込しました。" : "PATは未保存です。初回のみ貼り付けてPATを保存してください。");
+  if (!token) {
+    log("PATは未保存です。初回のみ貼り付けてPATを保存してください。");
+  } else if (!isValidGithubToken(token)) {
+    log(INVALID_PAT_MESSAGE, "error");
+  } else {
+    log("保存済みPATを自動読込しました。");
+  }
 }
 
 function clearToken() {
@@ -808,7 +858,8 @@ async function fetchLatestPathUpdatedAt(path) {
 }
 
 async function refreshCsvLockState(options = {}) {
-  if (!state.token && !$("tokenInput").value.trim()) {
+  const token = normalizeGithubToken($("tokenInput").value) || normalizeGithubToken(state.token);
+  if (!isValidGithubToken(token)) {
     updateWorkLockPanel();
     return;
   }
@@ -945,7 +996,8 @@ async function fetchLatestWorkflowRun() {
 }
 
 async function refreshInitialRunState() {
-  if (!state.token && !$("tokenInput").value.trim()) return;
+  const token = normalizeGithubToken($("tokenInput").value) || normalizeGithubToken(state.token);
+  if (!isValidGithubToken(token)) return;
   const run = await fetchLatestWorkflowRun();
   if (!run || run.status === "completed") return;
   renderRun(run);
@@ -1169,13 +1221,8 @@ function createArtifactRow({label, note, disabled, onClick}) {
 }
 
 async function fetchArtifactBlob(artifact) {
-  const token = getToken();
   const response = await fetch(artifact.archive_download_url, {
-    headers: {
-      "Accept": "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "Authorization": `Bearer ${token}`
-    }
+    headers: createGithubHeaders()
   });
   if (!response.ok) {
     throw new Error(`Artifactダウンロードに失敗しました: HTTP ${response.status}`);
