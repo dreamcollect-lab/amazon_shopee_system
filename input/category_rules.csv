@@ -730,3 +730,9 @@ motorcycles  motorcycle spare parts  brake system,deny,延長アダプター,con
 motorcycles  motorcycle spare parts  brake system,deny,変換アダプター,contains,
 motorcycles  motorcycle spare parts  brake system,deny,交換部品,contains,
 motorcycles  motorcycle spare parts  brake system,deny,カバーのみ,contains,
+
+motorcycles  motorcycle spare parts  brake system,deny,シフト/ブレーキレバー,contains,
+motorcycles  motorcycle spare parts  brake system,deny,DIA-COMPE,contains,
+motorcycles  motorcycle spare parts  brake system,deny,左右 ブレーキレバー クラッチレバー,contains,
+motorcycles  motorcycle spare parts  brake system,deny,＆ボルトSET,contains,
+motorcycles  motorcycle spare parts  brake system,deny,リペアキット,contains,
