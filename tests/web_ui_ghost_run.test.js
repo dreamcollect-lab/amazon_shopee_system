@@ -108,11 +108,11 @@ function createHarness({runs = [], runById = {}, confirmResult = true, workingFi
     appSource.slice(0, initializationStart) + `
       ;globalThis.__ghostRunTest = {
         CONFIG, state, INVALID_PAT_MESSAGE,
-        isWaitingRun, isRunActive, isRunIgnoredForLock, isRunLocking, isStep1Running,
+        isWaitingRun, isRunActive, isRunIgnoredForLock, isRunHiddenFromPrimaryDisplay, isRunLocking, isStep1Running,
         createIgnoredRunAudit, revokeIgnoredRunAudit, reconcileIgnoredRunAudits, loadIgnoredRunAudits,
         selectWorkflowRun, renderRun, emergencyIgnoreRun, cancelEmergencyRunIgnore,
         handleCompletedRun, createGithubHeaders, saveToken, parseAmazonFilename,
-        deleteCurrentCsv
+        deleteCurrentCsv, resetRunAndArtifactsState, fetchLatestRun
       };
     `,
     context
@@ -213,7 +213,10 @@ test("管理者の明示操作後だけ対象Runを監査付きで除外する",
     ["104", "run_step1.yml", run.created_at, true, "GitHub障害時のghost queued"]
   );
   assert.equal(harness.app.isRunIgnoredForLock(run), true);
+  assert.equal(harness.app.isRunHiddenFromPrimaryDisplay(run), true);
   assert.equal(harness.app.isStep1Running(), false);
+  assert.equal(harness.app.state.latestRun, null);
+  assert.equal(harness.elements.get("runIdText").textContent, "-");
   assert.match(harness.confirmMessages[0], /GitHub上のRunは削除・キャンセルされていません/);
   assert.match(harness.storage.get(harness.app.CONFIG.ignoredRunsKey), /"run_id":"104"/);
 });
@@ -307,6 +310,21 @@ test("解除済みghostではなく新しいdispatch Runを監視する", () => 
   harness.app.state.previousRunId = ghost.id;
   const selected = harness.app.selectWorkflowRun([nextRun, ghost]);
   assert.equal(selected.id, nextRun.id);
+});
+
+test("CSVクリア後の監視では解除済みRunを通常画面と通常ログへ戻さない", async () => {
+  const ghost = makeRun(114, "queued");
+  const completed = {...makeRun(115, "completed", "success"), created_at: "2026-08-27T01:00:00Z"};
+  const harness = createHarness({runs: [completed, ghost]});
+  harness.app.state.ignoredRunAudits = [harness.app.createIgnoredRunAudit(ghost, "ghost")];
+  harness.app.resetRunAndArtifactsState();
+
+  await harness.app.fetchLatestRun({silent: true});
+
+  assert.equal(harness.app.state.latestRun, null);
+  assert.equal(harness.elements.get("runIdText").textContent, "-");
+  assert.doesNotMatch(harness.elements.get("messageLog")?.textContent || "", /114/);
+  assert.equal(harness.app.isStep1Running(), false);
 });
 
 test("CSVクリア確認には対象ファイル名を表示し、拒否時はDELETEしない", async () => {

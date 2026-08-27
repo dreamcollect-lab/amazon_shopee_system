@@ -402,6 +402,10 @@ function isRunIgnoredForLock(run) {
   return isWaitingRun(run) && Boolean(findActiveIgnoredRunAudit(run.id));
 }
 
+function isRunHiddenFromPrimaryDisplay(run) {
+  return Boolean(run && findActiveIgnoredRunAudit(run.id));
+}
+
 function isRunLocking(run) {
   return isRunActive(run) && !isRunIgnoredForLock(run);
 }
@@ -513,11 +517,14 @@ function isRunAfterDispatch(run) {
 
 function selectWorkflowRun(runs) {
   const list = Array.isArray(runs) ? runs : [];
-  const available = list.filter((run) => !isRunIgnoredForLock(run));
+  const available = list.filter((run) => !isRunHiddenFromPrimaryDisplay(run));
   if (!state.workflowDispatchTime) {
     const active = available.find(isRunActive);
-    const ignoredWaiting = list.find(isRunIgnoredForLock);
-    return active || ignoredWaiting || available[0] || null;
+    if (active) return active;
+    if (state.latestRun) {
+      return available.find((run) => normalizeRunId(run.id) === normalizeRunId(state.latestRun.id)) || null;
+    }
+    return null;
   }
   const candidates = available.filter((run) => isRunAfterDispatch(run));
   const newCandidates = candidates.filter((run) => run.id !== state.previousRunId);
@@ -1270,7 +1277,7 @@ async function refreshWorkflowLockForOperation() {
   }
   const ignoredWaitingRun = runs.find(isRunIgnoredForLock) || null;
   if (ignoredWaitingRun) {
-    renderRun(ignoredWaitingRun);
+    if (isRunHiddenFromPrimaryDisplay(state.latestRun)) renderRun(null);
     startRunPolling();
   } else {
     state.workflowRunning = false;
@@ -1284,14 +1291,13 @@ async function refreshInitialRunState() {
   if (!isValidGithubToken(token)) return;
   const runs = await fetchWorkflowRuns();
   const run = selectWorkflowRun(runs);
-  if (!run || run.status === "completed") return;
+  if (!run || run.status === "completed") {
+    if (hasIgnoredWaitingRunAudits()) startRunPolling();
+    return;
+  }
   renderRun(run);
   startRunPolling();
-  if (isRunIgnoredForLock(run)) {
-    log(`緊急解除済みRun ${run.id} を監視中です。GitHub上のRunは削除・キャンセルされていません。`);
-  } else {
-    log(`実行中のSTEP1 Runを検出しました: ${run.id}`);
-  }
+  log(`実行中のSTEP1 Runを検出しました: ${run.id}`);
 }
 
 function startRunPolling() {
@@ -1369,14 +1375,13 @@ async function emergencyIgnoreRun() {
   }
   state.ignoredRunAudits.unshift(createIgnoredRunAudit(run, reason));
   saveIgnoredRunAudits();
-  renderRun(run);
   startRunPolling();
   $("emergencyRunIdInput").value = "";
   $("emergencyRunReason").value = "";
   $("emergencyCancelFailureConfirmed").checked = false;
 
   const runs = await fetchWorkflowRuns();
-  const selectedRun = selectWorkflowRun(runs) || run;
+  const selectedRun = selectWorkflowRun(runs);
   renderRun(selectedRun);
   log(`Run ${enteredRunId} をWeb UIの業務ロック対象から除外しました。GitHub上のRunは削除・キャンセルされていません。`);
 }
@@ -1422,8 +1427,11 @@ async function fetchLatestRun(options = {}) {
       }
       return;
     }
-    log("Workflow Runが見つかりません。", "error");
-    renderRun(null);
+    if (isRunHiddenFromPrimaryDisplay(state.latestRun)) renderRun(null);
+    if (!hasIgnoredWaitingRunAudits()) stopRunPolling();
+    if (!options.silent && !hasIgnoredWaitingRunAudits()) {
+      log("表示対象のWorkflow Runはありません。");
+    }
     return;
   }
   renderRun(run);
