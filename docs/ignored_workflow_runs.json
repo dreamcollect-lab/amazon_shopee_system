@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "runs": [
+    {
+      "run_id": "32984118188",
+      "workflow": "run_step1.yml",
+      "created_at": "2026-08-26T15:07:11Z",
+      "ignored_at": "2026-08-27T08:14:52Z",
+      "reason": "GitHub障害中に作成され、cancel失敗・force-cancel 409・delete 403となったghost queued Run",
+      "cancel_failure_confirmed": true,
+      "last_status": "queued",
+      "last_conclusion": null
+    }
+  ]
+}

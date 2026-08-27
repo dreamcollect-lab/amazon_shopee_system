@@ -5,6 +5,7 @@ const CONFIG = {
   workflow: "run_step1.yml",
   tokenKey: "amazonShopeeGithubPat",
   ignoredRunsKey: "amazonShopeeIgnoredWorkflowRuns",
+  sharedIgnoredRunsPath: "ignored_workflow_runs.json",
   lastUpdated: "2026/08/27",
   workflowRunsPerPage: 100,
   staleCsvMs: 60 * 60 * 1000
@@ -458,6 +459,31 @@ function loadIgnoredRunAudits() {
   renderIgnoredRunAudits();
 }
 
+async function loadSharedIgnoredRunAudits() {
+  const separator = CONFIG.sharedIgnoredRunsPath.includes("?") ? "&" : "?";
+  const response = await fetch(`${CONFIG.sharedIgnoredRunsPath}${separator}v=${Date.now()}`, {cache: "no-store"});
+  if (!response.ok) {
+    throw new Error(`全端末共通の異常Run除外台帳を取得できませんでした: HTTP ${response.status}`);
+  }
+  const payload = await response.json();
+  const entries = Array.isArray(payload) ? payload : payload?.runs;
+  if (!Array.isArray(entries)) {
+    throw new Error("全端末共通の異常Run除外台帳の形式が不正です。");
+  }
+  const sharedAudits = entries
+    .map((audit) => normalizeIgnoredRunAudit({...audit, shared: true}))
+    .filter(Boolean);
+  const merged = new Map();
+  for (const audit of state.ignoredRunAudits) {
+    merged.set(`${audit.workflow}:${audit.run_id}`, audit);
+  }
+  for (const audit of sharedAudits) {
+    merged.set(`${audit.workflow}:${audit.run_id}`, audit);
+  }
+  state.ignoredRunAudits = [...merged.values()];
+  renderIgnoredRunAudits();
+}
+
 function createIgnoredRunAudit(run, reason, ignoredAt = new Date().toISOString()) {
   return {
     run_id: normalizeRunId(run.id),
@@ -595,7 +621,7 @@ function renderIgnoredRunAudits() {
     const reason = document.createElement("span");
     reason.textContent = `理由: ${audit.reason || "-"}`;
     item.append(summary, details, reason);
-    if (isIgnoredRunAuditActive(audit)) {
+    if (isIgnoredRunAuditActive(audit) && !audit.shared) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "secondary";
@@ -1965,5 +1991,8 @@ loadToken();
 updateCategoryRulesState();
 setActiveView("upload");
 updateWizard();
-guard(() => refreshCsvLockState({silent: true}));
-guard(refreshInitialRunState);
+guard(async () => {
+  await loadSharedIgnoredRunAudits();
+  await refreshCsvLockState({silent: true});
+  await refreshInitialRunState();
+});

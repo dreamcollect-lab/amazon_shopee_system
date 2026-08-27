@@ -36,7 +36,7 @@ function makeElement() {
   };
 }
 
-function createHarness({runs = [], runById = {}, confirmResult = true, workingFiles = []} = {}) {
+function createHarness({runs = [], runById = {}, confirmResult = true, workingFiles = [], sharedIgnoredRuns = []} = {}) {
   const elements = new Map();
   const storage = new Map();
   const fetchCalls = [];
@@ -68,6 +68,8 @@ function createHarness({runs = [], runById = {}, confirmResult = true, workingFi
       data = workingFiles;
     } else if (urlText.includes("/commits?")) {
       data = [];
+    } else if (urlText.includes("ignored_workflow_runs.json")) {
+      data = {version: 1, runs: sharedIgnoredRuns};
     }
     return {
       ok: true,
@@ -109,7 +111,7 @@ function createHarness({runs = [], runById = {}, confirmResult = true, workingFi
       ;globalThis.__ghostRunTest = {
         CONFIG, state, INVALID_PAT_MESSAGE,
         isWaitingRun, isRunActive, isRunIgnoredForLock, isRunHiddenFromPrimaryDisplay, isRunLocking, isStep1Running,
-        createIgnoredRunAudit, revokeIgnoredRunAudit, reconcileIgnoredRunAudits, loadIgnoredRunAudits,
+        createIgnoredRunAudit, revokeIgnoredRunAudit, reconcileIgnoredRunAudits, loadIgnoredRunAudits, loadSharedIgnoredRunAudits,
         selectWorkflowRun, renderRun, emergencyIgnoreRun, cancelEmergencyRunIgnore,
         handleCompletedRun, createGithubHeaders, saveToken, parseAmazonFilename,
         deleteCurrentCsv, resetRunAndArtifactsState, fetchLatestRun
@@ -327,6 +329,32 @@ test("CSVクリア後の監視では解除済みRunを通常画面と通常ロ�
   assert.equal(harness.app.isStep1Running(), false);
 });
 
+test("別ブラウザでも全端末共通台帳から解除済みRunを通常表示しない", async () => {
+  const ghost = makeRun(116, "queued");
+  const sharedAudit = {
+    run_id: "116",
+    workflow: "run_step1.yml",
+    created_at: ghost.created_at,
+    ignored_at: "2026-08-27T08:14:52Z",
+    reason: "GitHub障害時のghost queued",
+    cancel_failure_confirmed: true,
+    last_status: "queued",
+    last_conclusion: null
+  };
+  const harness = createHarness({runs: [ghost], sharedIgnoredRuns: [sharedAudit]});
+
+  harness.app.loadIgnoredRunAudits();
+  assert.equal(harness.app.state.ignoredRunAudits.length, 0);
+  await harness.app.loadSharedIgnoredRunAudits();
+
+  assert.equal(harness.app.state.ignoredRunAudits.length, 1);
+  assert.equal(harness.app.state.ignoredRunAudits[0].shared, true);
+  assert.equal(harness.app.selectWorkflowRun([ghost]), null);
+  harness.app.renderRun(harness.app.selectWorkflowRun([ghost]));
+  assert.equal(harness.elements.get("runIdText").textContent, "-");
+  assert.equal(harness.app.isStep1Running(), false);
+});
+
 test("CSVクリア確認には対象ファイル名を表示し、拒否時はDELETEしない", async () => {
   const file = {
     name: "target-category.csv",
@@ -365,4 +393,5 @@ test("緊急解除UIは必須警告を表示し、特定Run IDをハードコー
     assert.match(`${html}\n${appSource}`, new RegExp(message));
   }
   assert.doesNotMatch(appSource, /actions\/runs\/[^`"']+\/(?:cancel|force-cancel)/);
+  assert.doesNotMatch(appSource, /32984118188/);
 });
