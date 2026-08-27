@@ -4,7 +4,9 @@ const CONFIG = {
   branch: "main",
   workflow: "run_step1.yml",
   tokenKey: "amazonShopeeGithubPat",
-  lastUpdated: "2026/07/05",
+  ignoredRunsKey: "amazonShopeeIgnoredWorkflowRuns",
+  lastUpdated: "2026/08/27",
+  workflowRunsPerPage: 100,
   staleCsvMs: 60 * 60 * 1000
 };
 
@@ -32,7 +34,9 @@ const state = {
   previousRunId: null,
   runNotFoundLogged: false,
   workingCsv: null,
-  csvLockStatus: "unknown"
+  csvLockStatus: "unknown",
+  workflowRuns: [],
+  ignoredRunAudits: []
 };
 
 const VIEW_TITLES = {
@@ -254,6 +258,7 @@ SAFE混在ゼロ最優先
 const $ = (id) => document.getElementById(id);
 
 const INVALID_PAT_MESSAGE = "保存されたPATの形式が不正です。設定からPATを保存し直してください。";
+const WAITING_RUN_STATUSES = new Set(["queued", "requested", "waiting", "pending"]);
 
 function normalizeGithubToken(value) {
   return String(value || "").trim().replace(/[\r\n]/g, "").trim();
@@ -361,8 +366,144 @@ function isStep1Ready() {
   return state.csvUploaded && state.categoryRulesLoaded && state.categoryRulesSaved;
 }
 
+function normalizeRunId(value) {
+  return String(value ?? "").trim();
+}
+
+function isWaitingRun(run) {
+  return Boolean(run?.status && WAITING_RUN_STATUSES.has(run.status));
+}
+
 function isRunActive(run) {
   return Boolean(run && run.status && run.status !== "completed");
+}
+
+function isIgnoredRunAuditActive(audit) {
+  return Boolean(audit && !audit.revoked_at && !audit.reactivated_at);
+}
+
+function hasIgnoredWaitingRunAudits() {
+  return state.ignoredRunAudits.some((audit) => (
+    isIgnoredRunAuditActive(audit) &&
+    (!audit.last_status || WAITING_RUN_STATUSES.has(audit.last_status))
+  ));
+}
+
+function findActiveIgnoredRunAudit(runId) {
+  const targetId = normalizeRunId(runId);
+  return state.ignoredRunAudits.find((audit) => (
+    normalizeRunId(audit.run_id) === targetId &&
+    audit.workflow === CONFIG.workflow &&
+    isIgnoredRunAuditActive(audit)
+  )) || null;
+}
+
+function isRunIgnoredForLock(run) {
+  return isWaitingRun(run) && Boolean(findActiveIgnoredRunAudit(run.id));
+}
+
+function isRunLocking(run) {
+  return isRunActive(run) && !isRunIgnoredForLock(run);
+}
+
+function normalizeIgnoredRunAudit(audit) {
+  if (!audit || typeof audit !== "object") return null;
+  const runId = normalizeRunId(audit.run_id);
+  const workflow = String(audit.workflow || "");
+  const reason = String(audit.reason || "").trim();
+  const createdAt = String(audit.created_at || "");
+  const ignoredAt = String(audit.ignored_at || "");
+  if (
+    !/^\d+$/.test(runId) ||
+    workflow !== CONFIG.workflow ||
+    !reason ||
+    audit.cancel_failure_confirmed !== true ||
+    Number.isNaN(Date.parse(createdAt)) ||
+    Number.isNaN(Date.parse(ignoredAt))
+  ) return null;
+  return {
+    ...audit,
+    run_id: runId,
+    workflow,
+    created_at: createdAt,
+    ignored_at: ignoredAt,
+    reason
+  };
+}
+
+function saveIgnoredRunAudits() {
+  localStorage.setItem(CONFIG.ignoredRunsKey, JSON.stringify(state.ignoredRunAudits));
+  renderIgnoredRunAudits();
+}
+
+function loadIgnoredRunAudits() {
+  const saved = localStorage.getItem(CONFIG.ignoredRunsKey);
+  if (!saved) {
+    state.ignoredRunAudits = [];
+    renderIgnoredRunAudits();
+    return;
+  }
+  try {
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) throw new Error("invalid audit format");
+    state.ignoredRunAudits = parsed.map(normalizeIgnoredRunAudit).filter(Boolean);
+  } catch {
+    state.ignoredRunAudits = [];
+    log("異常Runの緊急解除履歴を読み込めませんでした。管理者へ確認してください。", "error");
+  }
+  renderIgnoredRunAudits();
+}
+
+function createIgnoredRunAudit(run, reason, ignoredAt = new Date().toISOString()) {
+  return {
+    run_id: normalizeRunId(run.id),
+    workflow: CONFIG.workflow,
+    created_at: run.created_at || null,
+    ignored_at: ignoredAt,
+    reason: String(reason).trim(),
+    cancel_failure_confirmed: true,
+    last_status: run.status || null,
+    last_conclusion: run.conclusion || null
+  };
+}
+
+function revokeIgnoredRunAudit(runId, revokedAt = new Date().toISOString()) {
+  const audit = findActiveIgnoredRunAudit(runId);
+  if (!audit) return false;
+  audit.revoked_at = revokedAt;
+  audit.revoked_reason = "管理者による解除取り消し";
+  saveIgnoredRunAudits();
+  return true;
+}
+
+function reconcileIgnoredRunAudits(runs) {
+  let changed = false;
+  const reactivated = [];
+  const now = new Date().toISOString();
+  for (const audit of state.ignoredRunAudits) {
+    const run = runs.find((item) => normalizeRunId(item.id) === normalizeRunId(audit.run_id));
+    if (!run) continue;
+    if (audit.last_status !== run.status || audit.last_conclusion !== (run.conclusion || null)) {
+      audit.last_status = run.status || null;
+      audit.last_conclusion = run.conclusion || null;
+      audit.last_checked_at = now;
+      changed = true;
+    }
+    if (isIgnoredRunAuditActive(audit) && isRunActive(run) && !isWaitingRun(run)) {
+      audit.reactivated_at = now;
+      audit.reactivated_status = run.status;
+      reactivated.push(run);
+      changed = true;
+    }
+    if (run.status === "completed" && !audit.completed_observed_at) {
+      audit.completed_observed_at = now;
+      changed = true;
+    }
+  }
+  if (changed) saveIgnoredRunAudits();
+  for (const run of reactivated) {
+    log(`緊急解除したRun ${run.id} が ${translateRunStatus(run.status, run.conclusion)} へ変化したため、Web UIの業務ロックを自動で再開しました。`, "error");
+  }
 }
 
 function isRunAfterDispatch(run) {
@@ -371,13 +512,18 @@ function isRunAfterDispatch(run) {
 }
 
 function selectWorkflowRun(runs) {
-  const list = runs || [];
-  if (!state.workflowDispatchTime) return list[0] || null;
-  const candidates = list.filter((run) => isRunAfterDispatch(run));
+  const list = Array.isArray(runs) ? runs : [];
+  const available = list.filter((run) => !isRunIgnoredForLock(run));
+  if (!state.workflowDispatchTime) {
+    const active = available.find(isRunActive);
+    const ignoredWaiting = list.find(isRunIgnoredForLock);
+    return active || ignoredWaiting || available[0] || null;
+  }
+  const candidates = available.filter((run) => isRunAfterDispatch(run));
   const newCandidates = candidates.filter((run) => run.id !== state.previousRunId);
   if (newCandidates.length) return newCandidates[0];
   if (Date.now() <= state.runDetectDeadline) return null;
-  return list.find((run) => run.id !== state.previousRunId) || null;
+  return available.find((run) => run.id !== state.previousRunId) || null;
 }
 
 function translateRunStatus(status, conclusion = null) {
@@ -410,9 +556,72 @@ function translateRunConclusion(conclusion) {
   return labels[conclusion] || conclusion;
 }
 
+function ignoredRunAuditState(audit) {
+  if (audit.revoked_at) return `解除取り消し済み: ${formatDateTime(audit.revoked_at)}`;
+  if (audit.reactivated_at) {
+    return `自動再ロック済み: ${translateRunStatus(audit.reactivated_status)} / ${formatDateTime(audit.reactivated_at)}`;
+  }
+  if (audit.last_status === "completed") {
+    return `GitHub Run完了: ${translateRunConclusion(audit.last_conclusion)}`;
+  }
+  return "Web UI業務ロックから除外中";
+}
+
+function renderIgnoredRunAudits() {
+  const container = $("ignoredRunAuditList");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!state.ignoredRunAudits.length) {
+    container.textContent = "緊急解除の監査履歴はありません。";
+    return;
+  }
+  const audits = [...state.ignoredRunAudits].sort((a, b) => (
+    new Date(b.ignored_at || 0) - new Date(a.ignored_at || 0)
+  ));
+  for (const audit of audits) {
+    const item = document.createElement("div");
+    item.className = "ignored-run-audit-item";
+    const summary = document.createElement("strong");
+    summary.textContent = `Run ${audit.run_id} / ${ignoredRunAuditState(audit)}`;
+    const details = document.createElement("span");
+    details.textContent = `Workflow: ${audit.workflow} / Created: ${audit.created_at ? formatDateTime(audit.created_at) : "-"} / Ignored: ${audit.ignored_at ? formatDateTime(audit.ignored_at) : "-"}`;
+    const reason = document.createElement("span");
+    reason.textContent = `理由: ${audit.reason || "-"}`;
+    item.append(summary, details, reason);
+    if (isIgnoredRunAuditActive(audit)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary";
+      button.textContent = "解除を取り消す";
+      button.addEventListener("click", () => guard(() => cancelEmergencyRunIgnore(audit.run_id)));
+      item.appendChild(button);
+    }
+    container.appendChild(item);
+  }
+}
+
+function updateEmergencyRunTools() {
+  const candidateEl = $("emergencyRunCandidate");
+  const button = $("emergencyUnlockBtn");
+  if (!candidateEl || !button) return;
+  const run = state.latestRun;
+  const candidate = Boolean(run && isWaitingRun(run) && !isRunIgnoredForLock(run));
+  if (candidate) {
+    candidateEl.textContent = `解除候補 Run ID: ${run.id} / Status: ${translateRunStatus(run.status)} / Created: ${formatDateTime(run.created_at)}`;
+  } else if (run && isRunIgnoredForLock(run)) {
+    candidateEl.textContent = `Run ${run.id} はWeb UIの業務ロックから除外中です。GitHub上では ${translateRunStatus(run.status)} のままです。`;
+  } else {
+    candidateEl.textContent = "緊急解除できる待機中Runは表示されていません。";
+  }
+  const enteredRunId = normalizeRunId($("emergencyRunIdInput")?.value);
+  const reason = $("emergencyRunReason")?.value.trim() || "";
+  const cancelFailureConfirmed = Boolean($("emergencyCancelFailureConfirmed")?.checked);
+  button.disabled = !candidate || enteredRunId !== normalizeRunId(run?.id) || !reason || !cancelFailureConfirmed;
+}
+
 function updateRunNotice() {
   const ready = isStep1Ready();
-  const running = state.workflowRunning || isRunActive(state.latestRun);
+  const running = isStep1Running();
   $("runPreflightNotice")?.classList.toggle("hidden", ready || running);
   $("runRunningNotice")?.classList.toggle("hidden", !running);
 }
@@ -478,7 +687,7 @@ function updateCategoryCopyButton() {
 }
 
 function isStep1Running() {
-  return state.workflowRunning || Boolean(state.latestRun && state.latestRun.status && state.latestRun.status !== "completed");
+  return state.workflowRunning || isRunLocking(state.latestRun) || state.workflowRuns.some(isRunLocking);
 }
 
 function isWorkingCsvStale() {
@@ -497,6 +706,8 @@ function updateOperationLocks() {
   $("saveMasterBtn").disabled = running;
   $("saveMasterBtnMirror").disabled = running;
   $("masterEditor").disabled = running;
+  $("runWorkflowBtn").disabled = running;
+  updateEmergencyRunTools();
 }
 
 function updateWorkLockPanel() {
@@ -777,6 +988,7 @@ function resetRunAndArtifactsState() {
   $("runLink").href = "#";
   $("runLink").classList.remove("attention-link");
   $("artifactList").innerHTML = "";
+  if (hasIgnoredWaitingRunAudits()) startRunPolling();
 }
 
 function resetReviewResultsState() {
@@ -796,8 +1008,9 @@ function resetWork() {
 }
 
 async function deleteCurrentCsv() {
-  if (isStep1Running()) {
-    log("STEP1実行中のため、CSVクリアはできません。", "error");
+  const blockingRun = await refreshWorkflowLockForOperation();
+  if (blockingRun) {
+    log(`別の実行中Run ${blockingRun.id} が存在するため、CSVはクリアできません。`, "error");
     return;
   }
   const files = await listWorkingCsvFiles();
@@ -809,6 +1022,17 @@ async function deleteCurrentCsv() {
     state.csvLockStatus = "available";
     updateWizard();
     setActiveView("upload");
+    return;
+  }
+  const targetNames = files.map((file) => file.name).join("\n");
+  const approved = confirm(`以下のAmazon CSVをGitHubのinput/workingからクリアします。\n\n${targetNames}\n\nこの操作はGit commitとして記録されます。実行しますか？`);
+  if (!approved) {
+    log(`CSVクリアをキャンセルしました: ${files.map((file) => file.name).join(", ")}`);
+    return;
+  }
+  const lateBlockingRun = await refreshWorkflowLockForOperation();
+  if (lateBlockingRun) {
+    log(`別の実行中Run ${lateBlockingRun.id} が存在するため、CSVはクリアできません。`, "error");
     return;
   }
   for (const file of files) {
@@ -960,9 +1184,25 @@ async function runWorkflow() {
     log(message, "error");
     return;
   }
+  const blockingRun = await refreshWorkflowLockForOperation();
+  if (blockingRun) {
+    const message = `別の実行中Run ${blockingRun.id} が存在するため、STEP1を開始できません。`;
+    alert(message);
+    log(message, "error");
+    return;
+  }
+  const previousRun = await fetchLatestWorkflowRun();
+  const lateBlockingRun = state.workflowRuns.find(isRunLocking) || null;
+  if (lateBlockingRun) {
+    renderRun(lateBlockingRun);
+    startRunPolling();
+    const message = `別の実行中Run ${lateBlockingRun.id} が存在するため、STEP1を開始できません。`;
+    alert(message);
+    log(message, "error");
+    return;
+  }
   resetReviewResultsState();
   log("STEP1 workflowを実行します。");
-  const previousRun = await fetchLatestWorkflowRun();
   const dispatchStartedAt = Date.now();
   await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/dispatches`, {
     method: "POST",
@@ -990,19 +1230,68 @@ async function runWorkflow() {
   setTimeout(() => guard(() => fetchLatestRun({silent: true})), 3000);
 }
 
+async function fetchWorkflowRuns() {
+  const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=${CONFIG.workflowRunsPerPage}`);
+  const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+  const missingIgnoredAudits = state.ignoredRunAudits.filter((audit) => (
+    isIgnoredRunAuditActive(audit) &&
+    (!audit.last_status || WAITING_RUN_STATUSES.has(audit.last_status)) &&
+    !runs.some((run) => normalizeRunId(run.id) === normalizeRunId(audit.run_id))
+  ));
+  for (const audit of missingIgnoredAudits) {
+    try {
+      const monitoredRun = await fetchWorkflowRunById(audit.run_id);
+      if (isStep1WorkflowRun(monitoredRun)) runs.push(monitoredRun);
+    } catch (error) {
+      log(`緊急解除済みRun ${audit.run_id} の状態確認に失敗しました: ${error.message || String(error)}`, "error");
+    }
+  }
+  state.workflowRuns = runs;
+  reconcileIgnoredRunAudits(runs);
+  return runs;
+}
+
 async function fetchLatestWorkflowRun() {
-  const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=1`);
-  return data.workflow_runs?.[0] || null;
+  const runs = await fetchWorkflowRuns();
+  return runs[0] || null;
+}
+
+async function fetchWorkflowRunById(runId) {
+  return githubFetch(`/actions/runs/${encodeURIComponent(normalizeRunId(runId))}`);
+}
+
+async function refreshWorkflowLockForOperation() {
+  const runs = await fetchWorkflowRuns();
+  const blockingRun = runs.find(isRunLocking) || null;
+  if (blockingRun) {
+    renderRun(blockingRun);
+    startRunPolling();
+    return blockingRun;
+  }
+  const ignoredWaitingRun = runs.find(isRunIgnoredForLock) || null;
+  if (ignoredWaitingRun) {
+    renderRun(ignoredWaitingRun);
+    startRunPolling();
+  } else {
+    state.workflowRunning = false;
+    updateWizard();
+  }
+  return null;
 }
 
 async function refreshInitialRunState() {
   const token = normalizeGithubToken($("tokenInput").value) || normalizeGithubToken(state.token);
   if (!isValidGithubToken(token)) return;
-  const run = await fetchLatestWorkflowRun();
+  const runs = await fetchWorkflowRuns();
+  const run = selectWorkflowRun(runs);
   if (!run || run.status === "completed") return;
   renderRun(run);
   startRunPolling();
-  log(`実行中のSTEP1 Runを検出しました: ${run.id}`);
+  if (isRunIgnoredForLock(run)) {
+    log(`緊急解除済みRun ${run.id} を監視中です。GitHub上のRunは削除・キャンセルされていません。`);
+  } else {
+    log(`実行中のSTEP1 Runを検出しました: ${run.id}`);
+  }
 }
 
 function startRunPolling() {
@@ -1021,19 +1310,98 @@ function stopRunPolling() {
 function renderRun(run) {
   state.latestRun = run;
   $("runIdText").textContent = run?.id || "-";
-  $("runStatusText").textContent = translateRunStatus(run?.status, run?.conclusion);
+  const statusText = translateRunStatus(run?.status, run?.conclusion);
+  $("runStatusText").textContent = run && isRunIgnoredForLock(run)
+    ? `${statusText}（Web UIロック解除済み）`
+    : statusText;
   $("runConclusionText").textContent = translateRunConclusion(run?.conclusion);
   $("runCreatedText").textContent = run?.created_at ? new Date(run.created_at).toLocaleString("ja-JP") : "-";
   $("runLink").href = run?.html_url || "#";
   $("runLink").classList.toggle("attention-link", run?.status === "completed" && run?.conclusion === "failure");
-  state.workflowRunning = Boolean(run && run.status !== "completed");
+  state.workflowRunning = isRunLocking(run) || state.workflowRuns.some(isRunLocking);
   updateWizard();
+}
+
+function isStep1WorkflowRun(run) {
+  return Boolean(
+    run &&
+    run.path === `.github/workflows/${CONFIG.workflow}` &&
+    run.head_branch === CONFIG.branch
+  );
+}
+
+async function emergencyIgnoreRun() {
+  const enteredRunId = normalizeRunId($("emergencyRunIdInput").value);
+  const reason = $("emergencyRunReason").value.trim();
+  const cancelFailureConfirmed = $("emergencyCancelFailureConfirmed").checked;
+  if (!/^\d+$/.test(enteredRunId)) {
+    throw new Error("解除対象のRun IDを数字で入力してください。");
+  }
+  if (!state.latestRun || enteredRunId !== normalizeRunId(state.latestRun.id)) {
+    throw new Error("画面に表示されているRun IDと入力したRun IDが一致しません。状態を再確認してください。");
+  }
+  if (!cancelFailureConfirmed) {
+    throw new Error("通常キャンセルまたはforce-cancelが拒否されたことを確認してください。");
+  }
+  if (!reason) {
+    throw new Error("緊急解除の理由を入力してください。");
+  }
+  const run = await fetchWorkflowRunById(enteredRunId);
+  if (!isStep1WorkflowRun(run)) {
+    throw new Error("指定Runはmainブランチのrun_step1.yml実行ではありません。解除できません。");
+  }
+  if (!isWaitingRun(run)) {
+    throw new Error(`Run ${enteredRunId} は待機状態ではありません。緊急解除できません。`);
+  }
+  if (findActiveIgnoredRunAudit(enteredRunId)) {
+    throw new Error(`Run ${enteredRunId} は既にWeb UIの業務ロックから除外されています。`);
+  }
+  const approved = confirm(
+    `Run ${enteredRunId} を異常Runとして緊急解除します。\n\n` +
+    "GitHub上のRunは削除・キャンセルされていません。\n" +
+    "このRunだけをWeb UIの業務ロック対象から除外します。\n" +
+    "別の実行中Runが存在する場合、CSVはクリアできません。\n\n" +
+    "実行しますか？"
+  );
+  if (!approved) {
+    log(`Run ${enteredRunId} の緊急解除をキャンセルしました。`);
+    return;
+  }
+  state.ignoredRunAudits.unshift(createIgnoredRunAudit(run, reason));
+  saveIgnoredRunAudits();
+  renderRun(run);
+  startRunPolling();
+  $("emergencyRunIdInput").value = "";
+  $("emergencyRunReason").value = "";
+  $("emergencyCancelFailureConfirmed").checked = false;
+
+  const runs = await fetchWorkflowRuns();
+  const selectedRun = selectWorkflowRun(runs) || run;
+  renderRun(selectedRun);
+  log(`Run ${enteredRunId} をWeb UIの業務ロック対象から除外しました。GitHub上のRunは削除・キャンセルされていません。`);
+}
+
+async function cancelEmergencyRunIgnore(runId) {
+  const targetId = normalizeRunId(runId);
+  const audit = findActiveIgnoredRunAudit(targetId);
+  if (!audit) {
+    throw new Error(`Run ${targetId} の有効な緊急解除記録がありません。`);
+  }
+  if (!confirm(`Run ${targetId} の緊急解除を取り消します。Runが待機中または実行中なら、Web UIの業務ロックを再開します。よろしいですか？`)) {
+    return;
+  }
+  revokeIgnoredRunAudit(targetId);
+  const runs = await fetchWorkflowRuns();
+  const selectedRun = selectWorkflowRun(runs);
+  renderRun(selectedRun);
+  if (selectedRun && isRunActive(selectedRun)) startRunPolling();
+  log(`Run ${targetId} の緊急解除を取り消しました。`);
 }
 
 async function fetchLatestRun(options = {}) {
   if (!options.silent) log("管理者操作によりWorkflow状態を再確認しています。");
-  const data = await githubFetch(`/actions/workflows/${encodeURIComponent(CONFIG.workflow)}/runs?branch=${encodeURIComponent(CONFIG.branch)}&per_page=10`);
-  const run = selectWorkflowRun(data.workflow_runs);
+  const runs = await fetchWorkflowRuns();
+  const run = selectWorkflowRun(runs);
   if (!run) {
     if (state.workflowDispatchTime) {
       if (!state.runNotFoundLogged) {
@@ -1063,10 +1431,13 @@ async function fetchLatestRun(options = {}) {
     await handleCompletedRun(run);
     return;
   }
-  const logKey = `${run.id}:${run.status}:${run.conclusion || "-"}`;
+  if (!state.runPollTimer) startRunPolling();
+  const ignored = isRunIgnoredForLock(run);
+  const logKey = `${run.id}:${run.status}:${run.conclusion || "-"}:${ignored ? "ignored" : "locking"}`;
   const shouldLog = !options.silent || logKey !== state.lastRunLogKey;
   if (shouldLog) {
-    log(`最新Runを取得しました: ${run.id} / ${translateRunStatus(run.status, run.conclusion)} / ${translateRunConclusion(run.conclusion)}`);
+    const suffix = ignored ? " / Web UI業務ロック解除済み（監視継続）" : "";
+    log(`最新Runを取得しました: ${run.id} / ${translateRunStatus(run.status, run.conclusion)} / ${translateRunConclusion(run.conclusion)}${suffix}`);
     state.lastRunLogKey = logKey;
   }
 }
@@ -1502,6 +1873,10 @@ function bindEvents() {
   $("saveMasterBtnMirror").addEventListener("click", () => guard(saveMaster));
   $("runWorkflowBtn").addEventListener("click", () => guard(runWorkflow));
   $("refreshRunBtn").addEventListener("click", () => guard(fetchLatestRun));
+  $("emergencyUnlockBtn").addEventListener("click", () => guard(emergencyIgnoreRun));
+  $("emergencyRunIdInput").addEventListener("input", updateEmergencyRunTools);
+  $("emergencyRunReason").addEventListener("input", updateEmergencyRunTools);
+  $("emergencyCancelFailureConfirmed").addEventListener("change", updateEmergencyRunTools);
   $("clearLogBtn").addEventListener("click", () => $("messageLog").textContent = "");
   $("copyInitialPromptBtn").addEventListener("click", () => guard(copyInitialPrompt));
   $("copyRevisionPromptBtn").addEventListener("click", () => guard(copyRevisionPrompt));
@@ -1577,6 +1952,7 @@ async function guard(fn) {
 }
 
 bindEvents();
+loadIgnoredRunAudits();
 loadToken();
 updateCategoryRulesState();
 setActiveView("upload");

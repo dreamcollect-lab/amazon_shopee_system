@@ -188,11 +188,6 @@
           <div class="actions">
             <button id="runWorkflowBtn" type="button">Run STEP1</button>
           </div>
-          <details class="admin-run-tools">
-            <summary>管理者用</summary>
-            <p>通常業務では使用しません。Run状態を手動確認したい場合のみ使います。</p>
-            <button id="refreshRunBtn" type="button" class="secondary">状態を再確認</button>
-          </details>
           <div class="run-card">
             <div><span>Run ID</span><strong id="runIdText">-</strong></div>
             <div><span>Status</span><strong id="runStatusText">-</strong></div>
@@ -200,6 +195,31 @@
             <div><span>Created</span><strong id="runCreatedText">-</strong></div>
             <a id="runLink" href="#" target="_blank" rel="noopener">GitHubで開く</a>
           </div>
+          <details class="admin-run-tools">
+            <summary>管理者用</summary>
+            <p>通常業務では使用しません。Run状態を手動確認したい場合のみ使います。</p>
+            <button id="refreshRunBtn" type="button" class="secondary">状態を再確認</button>
+            <section class="emergency-run-tools" aria-labelledby="emergencyRunTitle">
+              <h3 id="emergencyRunTitle">異常Runを緊急解除</h3>
+              <p class="emergency-warning"><strong>GitHub上のRunは削除・キャンセルされていません</strong></p>
+              <p>このRunだけをWeb UIの業務ロック対象から除外します。</p>
+              <p>別の実行中Runが存在する場合、CSVはクリアできません。</p>
+              <p id="emergencyRunCandidate" class="emergency-run-candidate">緊急解除できる待機中Runは表示されていません。</p>
+              <label for="emergencyRunIdInput">画面に表示されたRun IDを入力</label>
+              <input id="emergencyRunIdInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Run ID">
+              <label class="emergency-confirm-row" for="emergencyCancelFailureConfirmed">
+                <input id="emergencyCancelFailureConfirmed" type="checkbox">
+                <span>GitHubで通常キャンセルが失敗、またはforce-cancelが409等で拒否されたことを確認しました</span>
+              </label>
+              <label for="emergencyRunReason">解除理由</label>
+              <input id="emergencyRunReason" type="text" maxlength="500" autocomplete="off" placeholder="例: GitHub障害中に作成されたghost queued Run">
+              <button id="emergencyUnlockBtn" type="button" class="emergency-unlock-button" disabled>異常Runを緊急解除</button>
+              <div class="ignored-run-audit">
+                <h4>緊急解除の監査履歴</h4>
+                <div id="ignoredRunAuditList" class="ignored-run-audit-list">緊急解除の監査履歴はありません。</div>
+              </div>
+            </section>
+          </details>
           <p class="hint">「GitHubで開く」は管理者向けの確認リンクです。通常業務はこのWeb UI内で完結します。</p>
         </section>
 
