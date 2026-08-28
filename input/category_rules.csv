@@ -180,3 +180,8 @@ insulation resistance testers_electrical testers & multimeters,deny,防水ポー
 insulation resistance testers_electrical testers & multimeters,deny,内部抵抗検出器バッテリーテスター,contains,
 insulation resistance testers_electrical testers & multimeters,deny,Kタイプ 熱電対,contains,
 insulation resistance testers_electrical testers & multimeters,deny,絶縁ループテスターRCD,contains,
+
+insulation resistance testers_electrical testers & multimeters,deny,FLUKE (フルーク) マルチメーター デジタルテスター,contains,
+insulation resistance testers_electrical testers & multimeters,deny,ANENG PN130,contains,
+insulation resistance testers_electrical testers & multimeters,deny,地上抵抗計テスター,contains,
+insulation resistance testers_electrical testers & multimeters,deny,Akozon接地抵抗テスター,contains,
