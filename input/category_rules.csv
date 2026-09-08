@@ -1587,3 +1587,5 @@ electrical testers & multimeters_signal generator,deny,トランジスタテス�
 electrical testers & multimeters_signal generator,deny,ワイヤレスリモコンテスター,contains,
 electrical testers & multimeters_signal generator,deny,2PCS 3チャンネル PWM パルス信号発生器,contains,
 electrical testers & multimeters_signal generator,deny,シグネレータ DIY 9-12V,contains,
+electrical testers & multimeters_signal generator,deny,ステッピング モーター ソレノイド バルブ,contains,
+electrical testers & multimeters_signal generator,deny,PWMパルス周波数デューティサイクル,contains,
