@@ -1584,3 +1584,6 @@ electrical testers & multimeters_signal generator,deny,電圧信号発生器,con
 electrical testers & multimeters_signal generator,deny,シューマン,contains,
 electrical testers & multimeters_signal generator,deny,燃料インジェクター,contains,
 electrical testers & multimeters_signal generator,deny,トランジスタテスター,contains,
+electrical testers & multimeters_signal generator,deny,ワイヤレスリモコンテスター,contains,
+electrical testers & multimeters_signal generator,deny,2PCS 3チャンネル PWM パルス信号発生器,contains,
+electrical testers & multimeters_signal generator,deny,シグネレータ DIY 9-12V,contains,
