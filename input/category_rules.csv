@@ -314,3 +314,13 @@ barcode reader,deny,スキャナ用バッテリ,contains,
 barcode reader,deny,レシーバー/ドングル,contains,
 barcode reader,deny,フィンガートリガーグローブ,contains,
 barcode reader,deny,頑丈なスキャナー Android,contains,
+
+honeymaplesyrups,allow,マヌカハニー,contains,
+honeymaplesyrups,allow,Manuka Honey,contains,
+honeymaplesyrups,allow,マヌカはちみつ,contains,
+
+honeymaplesyrups,deny,カヌカハニー,contains,
+honeymaplesyrups,deny,ピュアハニー,contains,
+honeymaplesyrups,deny,オーガニックローハニー,contains,
+honeymaplesyrups,deny,ハーブコーディアル,contains,
+honeymaplesyrups,deny,コーディアル,contains,
