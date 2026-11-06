@@ -73,6 +73,7 @@
         </div>
         <button type="button" class="sidebar-support-button flow-jump" data-view="allow-deny-support">Allow/Deny判定支援</button>
         <button type="button" class="sidebar-support-button secondary flow-jump" data-view="amazon-csv-support">Amazon CSV補助設定</button>
+        <button type="button" class="sidebar-support-button secondary flow-jump" data-view="sg-master">SG出品済みASIN更新</button>
       </div>
 
       <div class="sidebar-footer">
@@ -141,6 +142,21 @@
             <button id="clearSelectedCsvBtn" type="button" class="secondary hidden">CSVクリア</button>
             <button id="deleteUploadedCsvBtn" type="button" class="secondary danger-action hidden">アップロードCSV削除</button>
           </div>
+        </section>
+
+        <section id="sg-master" class="work-panel" data-view="sg-master">
+          <div class="notice"><strong>SG出品済みASINの全件更新</strong>
+            Shopee SGの出品済み商品一覧から作成した asin 列を持つCSVを登録します。
+            PHの既存マスターは変更しません。STEP1はPHとSGの両方に存在するASINを除外します。
+          </div>
+          <label for="sgMasterInput">SG出品済みASIN CSV（ヘッダー: asin）</label>
+          <input id="sgMasterInput" type="file" accept=".csv,text/csv">
+          <p id="sgMasterPreview">CSVを選択してください。</p>
+          <div class="actions">
+            <button id="sgMasterCheckBtn" type="button" class="secondary">現在のSGマスターを確認</button>
+            <button id="sgMasterSaveBtn" type="button" disabled>SGマスターを更新</button>
+          </div>
+          <p class="hint">全件スナップショット専用です。差分ファイルを登録しないでください。更新はGit履歴に残ります。STEP1実行中は更新できません。</p>
         </section>
 
         <section id="masters" class="work-panel" data-view="rules">
