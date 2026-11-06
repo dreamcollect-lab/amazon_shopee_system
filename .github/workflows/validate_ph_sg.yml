@@ -1,0 +1,25 @@
+name: Validate PH SG Duplicate Extension
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/step1.py'
+      - 'scripts/test_duplicate_masters.py'
+      - 'docs/app.js'
+      - 'docs/index.html'
+      - 'input/shopee_sg_existing_asin.csv'
+      - '.github/workflows/validate_ph_sg.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s scripts -p 'test_duplicate_masters.py' -v
+      - run: node --check docs/app.js
+      - run: python -m py_compile scripts/step1.py
