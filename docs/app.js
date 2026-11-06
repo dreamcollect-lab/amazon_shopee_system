@@ -1954,9 +1954,9 @@ async function saveSgMaster() {
   if (previous.count && nextCount < previous.count * 0.8) {
     throw new Error(`SGマスター件数が大幅に減少しています（${previous.count}→${nextCount}）。全件Excelから作成したCSVか確認してください。`);
   }
-  if (!confirm(`SG出品済みASINを全件置換します。\\n現在：${previous.count}件\\n更新後：${nextCount}件\\n差分ファイルではないことを確認しましたか？`)) return;
+  if (!confirm(`SG出品済みASINを全件置換します。\n現在：${previous.count}件\n更新後：${nextCount}件\n差分ファイルではないことを確認しましたか？`)) return;
   const path = "input/shopee_sg_existing_asin.csv";
-  const csv = "asin\\n" + sgPendingCsv.values.join("\\n") + "\\n";
+  const csv = "asin\n" + sgPendingCsv.values.join("\n") + "\n";
   const body = {
     message: "Update Shopee SG existing ASIN master",
     content: textToBase64(csv),
