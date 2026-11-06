@@ -1,0 +1,31 @@
+name: Validate master timestamps
+
+on:
+  pull_request:
+    paths:
+      - 'docs/app.js'
+      - 'docs/index.html'
+      - '.github/workflows/validate_master_timestamps.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check docs/app.js
+      - name: Check PH and SG date and count targets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html=Path('docs/index.html').read_text()
+          js=Path('docs/app.js').read_text()
+          for market in ('ph','sg'):
+              assert f'id="{market}MasterUpdated"' in html
+              assert f'id="{market}MasterCount"' in html
+          assert 'getListingMasterLastUpdated' in js
+          assert 'timeZone: "Asia/Tokyo"' in js
+          PY
