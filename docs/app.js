@@ -48,7 +48,8 @@ const VIEW_TITLES = {
   review: "Review",
   improve: "Rule改善・再実行",
   "allow-deny-support": "Allow / Deny 判定支援",
-  "amazon-csv-support": "Amazon CSV補助設定"
+  "amazon-csv-support": "Amazon CSV補助設定",
+  "sg-master": "SG出品済みASIN更新"
 };
 
 const INITIAL_RULE_PROMPT = `==============================
@@ -1886,6 +1887,95 @@ function crc32(bytes) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
+
+let sgPendingCsv = null;
+let sgPreviousCount = null;
+
+function parseSgAsinCsv(text) {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(line => line.trim() !== "");
+  if (!lines.length || lines[0].trim().toLowerCase() !== "asin") {
+    throw new Error("SGマスターは先頭行が asin のCSVを選択してください。");
+  }
+  const values = [];
+  for (const [index, raw] of lines.slice(1).entries()) {
+    const asin = raw.trim().toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(asin)) {
+      throw new Error(`SGマスターの${index + 2}行目に不正なASINがあります。`);
+    }
+    values.push(asin);
+  }
+  if (!values.length) throw new Error("SGマスターにASINがありません。");
+  const unique = [...new Set(values)].sort();
+  return {values: unique, duplicateRows: values.length - unique.length};
+}
+
+async function getSgMasterInfo() {
+  const path = "input/shopee_sg_existing_asin.csv";
+  try {
+    const data = await githubFetch(`/contents/${encodeURIComponentPath(path)}?ref=${encodeURIComponent(CONFIG.branch)}`);
+    const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
+    const text = new TextDecoder("utf-8").decode(bytes);
+    const parsed = parseSgAsinCsv(text);
+    return {sha: data.sha, count: parsed.values.length};
+  } catch (error) {
+    if (/GitHub APIエラー 404/.test(error.message)) return {sha: null, count: 0};
+    throw error;
+  }
+}
+
+async function checkSgMaster() {
+  const info = await getSgMasterInfo();
+  sgPreviousCount = info.count;
+  $("sgMasterPreview").textContent = `現在のSGマスター：${info.count} ASIN` + (sgPendingCsv ? ` / 更新候補：${sgPendingCsv.values.length} ASIN` : "");
+  log(`SGマスターを確認しました：${info.count} ASIN`);
+}
+
+async function selectSgMasterFile() {
+  sgPendingCsv = null;
+  $("sgMasterSaveBtn").disabled = true;
+  const file = $("sgMasterInput").files?.[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("SGマスターにはCSVファイルを選択してください。");
+  if (file.size > 10 * 1024 * 1024) throw new Error("SGマスターは10MB以下のCSVにしてください。");
+  const parsed = parseSgAsinCsv(await file.text());
+  const previous = await getSgMasterInfo();
+  sgPreviousCount = previous.count;
+  sgPendingCsv = parsed;
+  $("sgMasterPreview").textContent = `更新候補：${parsed.values.length} ASIN / ファイル内重複：${parsed.duplicateRows}行 / 現在：${previous.count} ASIN`;
+  $("sgMasterSaveBtn").disabled = false;
+}
+
+async function saveSgMaster() {
+  if (!sgPendingCsv) throw new Error("先にSGマスターCSVを選択してください。");
+  await refreshInitialRunState();
+  if (isStep1Running()) throw new Error("STEP1実行中はSGマスターを更新できません。");
+  const previous = await getSgMasterInfo();
+  const nextCount = sgPendingCsv.values.length;
+  if (previous.count && nextCount < previous.count * 0.8) {
+    throw new Error(`SGマスター件数が大幅に減少しています（${previous.count}→${nextCount}）。全件Excelから作成したCSVか確認してください。`);
+  }
+  if (!confirm(`SG出品済みASINを全件置換します。\\n現在：${previous.count}件\\n更新後：${nextCount}件\\n差分ファイルではないことを確認しましたか？`)) return;
+  const path = "input/shopee_sg_existing_asin.csv";
+  const csv = "asin\\n" + sgPendingCsv.values.join("\\n") + "\\n";
+  const body = {
+    message: "Update Shopee SG existing ASIN master",
+    content: textToBase64(csv),
+    branch: CONFIG.branch
+  };
+  if (previous.sha) body.sha = previous.sha;
+  await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+  sgPreviousCount = nextCount;
+  sgPendingCsv = null;
+  $("sgMasterInput").value = "";
+  $("sgMasterSaveBtn").disabled = true;
+  $("sgMasterPreview").textContent = `SGマスター更新済み：${nextCount} ASIN`;
+  log(`SGマスターを更新しました：${nextCount} ASIN`);
+}
+
 function bindEvents() {
   $("ownerText").textContent = CONFIG.owner;
   $("repoText").textContent = CONFIG.repo;
@@ -1893,6 +1983,9 @@ function bindEvents() {
   $("workflowText").textContent = CONFIG.workflow;
   $("lastUpdatedText").textContent = CONFIG.lastUpdated;
 
+  $("sgMasterInput").addEventListener("change", () => guard(selectSgMasterFile));
+  $("sgMasterCheckBtn").addEventListener("click", () => guard(checkSgMaster));
+  $("sgMasterSaveBtn").addEventListener("click", () => guard(saveSgMaster));
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("copyCategoryBtn").addEventListener("click", () => guard(copyCategoryCandidate));
