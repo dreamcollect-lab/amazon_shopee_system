@@ -73,7 +73,12 @@
         </div>
         <button type="button" class="sidebar-support-button flow-jump" data-view="allow-deny-support">Allow/Deny判定支援</button>
         <button type="button" class="sidebar-support-button secondary flow-jump" data-view="amazon-csv-support">Amazon CSV補助設定</button>
-        <button type="button" class="sidebar-support-button secondary flow-jump" data-view="sg-master">SG出品済みASIN更新</button>
+      </div>
+
+      <div class="sidebar-support" aria-label="出品済み商品マスター管理">
+        <p class="sidebar-support-title">マスター管理・更新</p>
+        <button type="button" class="sidebar-support-button secondary flow-jump" data-view="ph-master">PH出品済み商品更新</button>
+        <button type="button" class="sidebar-support-button secondary flow-jump" data-view="sg-master">SG出品済み商品更新</button>
       </div>
 
       <div class="sidebar-footer">
@@ -142,6 +147,20 @@
             <button id="clearSelectedCsvBtn" type="button" class="secondary hidden">CSVクリア</button>
             <button id="deleteUploadedCsvBtn" type="button" class="secondary danger-action hidden">アップロードCSV削除</button>
           </div>
+        </section>
+
+        <section id="ph-master" class="work-panel" data-view="ph-master">
+          <div class="notice"><strong>PH出品済みASINの全件更新</strong>
+            PHの出品済み全件を含む、先頭列 asin のCSVを登録します。SGマスターは変更しません。
+          </div>
+          <label for="phMasterInput">PH出品済みASIN CSV（ヘッダー: asin）</label>
+          <input id="phMasterInput" type="file" accept=".csv,text/csv">
+          <p id="phMasterPreview">CSVを選択してください。</p>
+          <div class="actions">
+            <button id="phMasterCheckBtn" type="button" class="secondary">現在のPHマスターを確認</button>
+            <button id="phMasterSaveBtn" type="button" disabled>PHマスターを更新</button>
+          </div>
+          <p class="hint">全件スナップショット専用です。更新前のマスターはGit履歴に保存されます。STEP1実行中は更新できません。</p>
         </section>
 
         <section id="sg-master" class="work-panel" data-view="sg-master">
