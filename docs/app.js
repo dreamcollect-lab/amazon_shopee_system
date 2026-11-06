@@ -1916,9 +1916,18 @@ function parseListingAsinCsv(text) {
   return {values: [...new Set(values)].sort(), duplicateRows: values.length - new Set(values).size};
 }
 
+async function publicMasterFetch(path) {
+  const response = await fetch(apiUrl(path), {
+    headers: {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("公開マスター情報の取得に失敗しました: HTTP " + response.status);
+  return response.json();
+}
+
 async function getListingMasterInfo(market) {
   const path = listingMasterState[market].path;
-  const data = await githubFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + encodeURIComponent(CONFIG.branch));
+  const data = await publicMasterFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + encodeURIComponent(CONFIG.branch));
   const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
   const parsed = parseListingAsinCsv(new TextDecoder("utf-8").decode(bytes));
   return {sha: data.sha, count: parsed.values.length};
@@ -1927,7 +1936,7 @@ async function getListingMasterInfo(market) {
 async function getListingMasterLastUpdated(market) {
   const path = listingMasterState[market].path;
   const query = "?path=" + encodeURIComponent(path) + "&sha=" + encodeURIComponent(CONFIG.branch) + "&per_page=1";
-  const commits = await githubFetch("/commits" + query);
+  const commits = await publicMasterFetch("/commits" + query);
   if (!Array.isArray(commits) || !commits.length) return null;
   const timestamp = commits[0]?.commit?.committer?.date || commits[0]?.commit?.author?.date;
   return timestamp && !Number.isNaN(Date.parse(timestamp)) ? timestamp : null;
