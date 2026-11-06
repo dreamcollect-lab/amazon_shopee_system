@@ -51,6 +51,7 @@ STANDARD_DIR = OUTPUT_DIR / "standard"
 NG_MASTER_CSV = INPUT_DIR / "ng_master.csv"
 CATEGORY_RULES_CSV = INPUT_DIR / "category_rules.csv"
 SHOPEE_EXISTING_ASIN_CSV = INPUT_DIR / "shopee_existing_asin.csv"
+SHOPEE_SG_EXISTING_ASIN_CSV = INPUT_DIR / "shopee_sg_existing_asin.csv"
 SUMMARY_FILE = BASE_DIR / "summary.txt"
 MOVE_TO_PROCESSED = os.environ.get("STEP1_MOVE_TO_PROCESSED", "").strip() == "1"
 
@@ -690,22 +691,28 @@ def load_ng_master():
 
 
 def load_existing_asins():
-    if not SHOPEE_EXISTING_ASIN_CSV.exists():
-        return set()
-
-    df = pd.read_csv(SHOPEE_EXISTING_ASIN_CSV, dtype=str, encoding="utf-8-sig").fillna("")
-
-    if "asin" not in df.columns:
-        return set()
-
-    existing_asins = set()
-
-    for value in df["asin"].tolist():
-        asin = str(value).strip().upper()
-        if re.fullmatch(r"[A-Z0-9]{10}", asin):
-            existing_asins.add(asin)
-
-    return existing_asins
+    """Load PH and SG existing ASINs independently, fail closed on missing or invalid data."""
+    combined = set()
+    for market, path in (
+        ("PH", SHOPEE_EXISTING_ASIN_CSV),
+        ("SG", SHOPEE_SG_EXISTING_ASIN_CSV),
+    ):
+        if not path.is_file():
+            raise RuntimeError(f"{market}出品済みASINマスターがありません: {path.name}")
+        df = pd.read_csv(path, dtype=str, encoding="utf-8-sig").fillna("")
+        if "asin" not in df.columns:
+            raise RuntimeError(f"{market}出品済みASINマスターにasin列がありません: {path.name}")
+        raw = df["asin"].astype(str).str.strip().str.upper()
+        invalid = raw[(raw != "") & ~raw.str.fullmatch(r"[A-Z0-9]{10}")]
+        if not invalid.empty:
+            raise RuntimeError(f"{market}出品済みASINマスターに不正なASINがあります: {path.name}")
+        values = set(raw[raw.str.fullmatch(r"[A-Z0-9]{10}")].tolist())
+        if not values:
+            raise RuntimeError(f"{market}出品済みASINマスターが空です: {path.name}")
+        combined.update(values)
+        print(f"{market}出品済みASIN: {len(values)}件")
+    print(f"PH+SG出品済みASIN統合: {len(combined)}件")
+    return combined
 
 
 def load_category_rules():
