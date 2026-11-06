@@ -19,9 +19,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Merge PH and SG existing ASINs
-        run: python scripts/prepare_ph_sg_duplicates.py
-
       - name: Run STEP1
         run: python scripts/step1.py
 
