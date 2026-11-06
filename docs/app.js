@@ -674,6 +674,8 @@ function setActiveView(view) {
   updateSupportPrompts();
   updateWizard();
   if (view === "upload") guard(() => refreshCsvLockState({silent: true}));
+  if (view === "ph-master") guard(() => checkListingMaster("PH"));
+  if (view === "sg-master") guard(() => checkListingMaster("SG"));
 }
 
 function updateWizard() {
@@ -1916,21 +1918,43 @@ function parseListingAsinCsv(text) {
 
 async function getListingMasterInfo(market) {
   const path = listingMasterState[market].path;
-  try {
-    const data = await githubFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + encodeURIComponent(CONFIG.branch));
-    const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
-    const parsed = parseListingAsinCsv(new TextDecoder("utf-8").decode(bytes));
-    return {sha: data.sha, count: parsed.values.length};
-  } catch (error) {
-    if (market === "SG" && /GitHub APIエラー 404/.test(error.message)) return {sha: null, count: 0};
-    throw error;
-  }
+  const data = await githubFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + encodeURIComponent(CONFIG.branch));
+  const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
+  const parsed = parseListingAsinCsv(new TextDecoder("utf-8").decode(bytes));
+  return {sha: data.sha, count: parsed.values.length};
+}
+
+async function getListingMasterLastUpdated(market) {
+  const path = listingMasterState[market].path;
+  const query = "?path=" + encodeURIComponent(path) + "&sha=" + encodeURIComponent(CONFIG.branch) + "&per_page=1";
+  const commits = await githubFetch("/commits" + query);
+  if (!Array.isArray(commits) || !commits.length) return null;
+  const timestamp = commits[0]?.commit?.committer?.date || commits[0]?.commit?.author?.date;
+  return timestamp && !Number.isNaN(Date.parse(timestamp)) ? timestamp : null;
+}
+
+function formatListingMasterDate(value) {
+  if (!value) return "未確認";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).format(new Date(value));
 }
 
 async function checkListingMaster(market) {
   const info = await getListingMasterInfo(market);
+  const prefix = market.toLowerCase();
+  $(prefix + "MasterCount").textContent = info.count.toLocaleString("ja-JP") + "件";
+  $(prefix + "MasterUpdated").textContent = "確認中";
+  try {
+    const timestamp = await getListingMasterLastUpdated(market);
+    $(prefix + "MasterUpdated").textContent = formatListingMasterDate(timestamp);
+  } catch (error) {
+    $(prefix + "MasterUpdated").textContent = "取得失敗";
+    log(market + "マスター最終更新日の取得に失敗: " + (error.message || String(error)), "error");
+  }
   const pending = listingMasterState[market].pending;
-  $(market.toLowerCase() + "MasterPreview").textContent =
+  $(prefix + "MasterPreview").textContent =
     "現在：" + info.count + " ASIN" + (pending ? " / 更新候補：" + pending.values.length + " ASIN" : "");
   log(market + "出品済みASINマスターを確認しました：" + info.count + "件");
 }
@@ -1982,6 +2006,7 @@ async function saveListingMaster(market) {
   $(prefix + "MasterSaveBtn").disabled = true;
   $(prefix + "MasterPreview").textContent = market + "マスター更新済み：" + nextCount + "件";
   log(market + "出品済みASINマスターを更新しました：" + nextCount + "件");
+  await checkListingMaster(market);
 }
 
 function bindEvents() {
