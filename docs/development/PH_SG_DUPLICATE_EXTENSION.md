@@ -1,22 +1,21 @@
-# PH・SG 出品済みASIN統合（開発ブランチ）
+# PH・SG 出品済みASIN統合
 
-## 目的
-PHまたはSGのどちらかに出品済みのASINを、STEP1のOUT_DUPLICATEへ送る。
+## 通常業務
+- STEP1業務フローは従来どおり。Allow/DenyとNGマスターはRule編集で管理する。
+- STEP1はPH・SGのASINマスターを直接読み込み、どちらかに存在するASINをOUT_DUPLICATEへ送る。
+- 統合CSVの生成や別途呼び出し操作は不要。
 
-## マスター
-- PH: `input/shopee_existing_asin.csv`（既存ファイルを維持）
-- SG: `input/shopee_sg_existing_asin.csv`（先頭列名 `asin`、全件CSV）
-- STEP1実行時、Actionsランナー上でPH・SGを統合して既存の `shopee_existing_asin.csv` に一時的に書き出す。リポジトリのPHマスター自体は変更しない。
+## 出品済み商品マスター更新
+- 左メニュー「マスター管理・更新」にPHとSGの独立した更新画面を設置。
+- PH: input/shopee_existing_asin.csv（既存データを保全）
+- SG: input/shopee_sg_existing_asin.csv（今回提供のSG Excelから抽出したASINを初期登録）
+- 各国の全件ASIN CSV（先頭列 asin）を選択し、件数を確認して置換。差分CSVは不可。
+- 不正ASIN、空ファイル、20%を超える件数減少は更新を拒否。STEP1実行中は更新不可。
+- GitHub Contents APIのSHAを使い、競合更新を検出する。履歴はGitに残る。
 
-## SG更新
-- Web UIの「SG出品済みASIN更新」から、`asin` 列のみの全件CSVを選択する。
-- 件数を確認して更新する。空・不正ASINは拒否、既存件数から20%超減少する更新は停止。
-- GitHubのCSV更新はコミット履歴に残る。
-- 差分Excelを全件CSVとして登録しない。商品IDや商品名からASINを推測しない。
-- 更新時にSTEP1が走っていないことを確認する。複数管理者の同時保存はGitHub Contents APIのSHA競合で拒否する。
-
-## 注意
-- ShopeeのExcelをそのままWeb UIへアップロードする機能は未実装。現時点ではASIN抽出済みCSVが必要。
-- SGマスター未登録ならSTEP1を停止する（PHだけで成功扱いにしない）。
-- このブランチはmainに未反映。実際のGitHub API更新・STEP1通し実行は未検証。
-- 既存のPHデータが全出品商品を含むか、SGのExcelが全件スナップショットかは別途確認が必要。
+## 未対応・注意
+- Shopeeのxlsxを直接Web UIにアップロードする機能は未実装。ASIN抽出済みCSVを使用する。
+- SGの元Excelが出品済み全件を含むこと、PHのマスターが最新であることは利用者側の確認が必要。
+- SG初期マスターには3,594件のユニークASINが登録されている。
+- どちらかのマスターが欠損・空・不正ならSTEP1を停止し、誤ってSAFEへ通さない。
+- WindowsローカルフォルダにはGitHubでの変更が自動同期されない。正本はGitHub mainとする。
