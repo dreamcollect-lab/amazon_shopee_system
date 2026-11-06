@@ -49,7 +49,8 @@ const VIEW_TITLES = {
   improve: "Rule改善・再実行",
   "allow-deny-support": "Allow / Deny 判定支援",
   "amazon-csv-support": "Amazon CSV補助設定",
-  "sg-master": "SG出品済みASIN更新"
+  "sg-master": "SG出品済みASIN更新",
+  "ph-master": "PH出品済みASIN更新"
 };
 
 const INITIAL_RULE_PROMPT = `==============================
@@ -1888,92 +1889,99 @@ function crc32(bytes) {
 }
 
 
-let sgPendingCsv = null;
-let sgPreviousCount = null;
 
-function parseSgAsinCsv(text) {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(line => line.trim() !== "");
-  if (!lines.length || lines[0].trim().toLowerCase() !== "asin") {
-    throw new Error("SGマスターは先頭行が asin のCSVを選択してください。");
+const listingMasterState = {
+  PH: {pending: null, path: "input/shopee_existing_asin.csv"},
+  SG: {pending: null, path: "input/shopee_sg_existing_asin.csv"}
+};
+
+function parseListingAsinCsv(text) {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const header = (lines.shift() || "").trim().toLowerCase();
+  if (header !== "asin" && !header.startsWith("asin,")) {
+    throw new Error("先頭列名が asin のCSVを選択してください。");
   }
   const values = [];
-  for (const [index, raw] of lines.slice(1).entries()) {
-    const asin = raw.trim().toUpperCase();
+  for (const [index, line] of lines.entries()) {
+    if (!line.trim()) continue;
+    const asin = line.split(",")[0].trim().toUpperCase();
     if (!/^[A-Z0-9]{10}$/.test(asin)) {
-      throw new Error(`SGマスターの${index + 2}行目に不正なASINがあります。`);
+      throw new Error("CSVの" + (index + 2) + "行目に不正なASINがあります。");
     }
     values.push(asin);
   }
-  if (!values.length) throw new Error("SGマスターにASINがありません。");
-  const unique = [...new Set(values)].sort();
-  return {values: unique, duplicateRows: values.length - unique.length};
+  if (!values.length) throw new Error("ASINが1件もありません。");
+  return {values: [...new Set(values)].sort(), duplicateRows: values.length - new Set(values).size};
 }
 
-async function getSgMasterInfo() {
-  const path = "input/shopee_sg_existing_asin.csv";
+async function getListingMasterInfo(market) {
+  const path = listingMasterState[market].path;
   try {
-    const data = await githubFetch(`/contents/${encodeURIComponentPath(path)}?ref=${encodeURIComponent(CONFIG.branch)}`);
+    const data = await githubFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + encodeURIComponent(CONFIG.branch));
     const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
-    const text = new TextDecoder("utf-8").decode(bytes);
-    const parsed = parseSgAsinCsv(text);
+    const parsed = parseListingAsinCsv(new TextDecoder("utf-8").decode(bytes));
     return {sha: data.sha, count: parsed.values.length};
   } catch (error) {
-    if (/GitHub APIエラー 404/.test(error.message)) return {sha: null, count: 0};
+    if (market === "SG" && /GitHub APIエラー 404/.test(error.message)) return {sha: null, count: 0};
     throw error;
   }
 }
 
-async function checkSgMaster() {
-  const info = await getSgMasterInfo();
-  sgPreviousCount = info.count;
-  $("sgMasterPreview").textContent = `現在のSGマスター：${info.count} ASIN` + (sgPendingCsv ? ` / 更新候補：${sgPendingCsv.values.length} ASIN` : "");
-  log(`SGマスターを確認しました：${info.count} ASIN`);
+async function checkListingMaster(market) {
+  const info = await getListingMasterInfo(market);
+  const pending = listingMasterState[market].pending;
+  $(market.toLowerCase() + "MasterPreview").textContent =
+    "現在：" + info.count + " ASIN" + (pending ? " / 更新候補：" + pending.values.length + " ASIN" : "");
+  log(market + "出品済みASINマスターを確認しました：" + info.count + "件");
 }
 
-async function selectSgMasterFile() {
-  sgPendingCsv = null;
-  $("sgMasterSaveBtn").disabled = true;
-  const file = $("sgMasterInput").files?.[0];
+async function selectListingMasterFile(market) {
+  const prefix = market.toLowerCase();
+  listingMasterState[market].pending = null;
+  $(prefix + "MasterSaveBtn").disabled = true;
+  const file = $(prefix + "MasterInput").files?.[0];
   if (!file) return;
-  if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("SGマスターにはCSVファイルを選択してください。");
-  if (file.size > 10 * 1024 * 1024) throw new Error("SGマスターは10MB以下のCSVにしてください。");
-  const parsed = parseSgAsinCsv(await file.text());
-  const previous = await getSgMasterInfo();
-  sgPreviousCount = previous.count;
-  sgPendingCsv = parsed;
-  $("sgMasterPreview").textContent = `更新候補：${parsed.values.length} ASIN / ファイル内重複：${parsed.duplicateRows}行 / 現在：${previous.count} ASIN`;
-  $("sgMasterSaveBtn").disabled = false;
+  if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("CSVファイルを選択してください。");
+  if (file.size > 10 * 1024 * 1024) throw new Error("10MB以下のCSVを選択してください。");
+  const parsed = parseListingAsinCsv(await file.text());
+  const previous = await getListingMasterInfo(market);
+  listingMasterState[market].pending = parsed;
+  $(prefix + "MasterPreview").textContent =
+    "現在：" + previous.count + "件 / 更新候補：" + parsed.values.length +
+    "件 / ファイル内重複：" + parsed.duplicateRows + "行";
+  $(prefix + "MasterSaveBtn").disabled = false;
 }
 
-async function saveSgMaster() {
-  if (!sgPendingCsv) throw new Error("先にSGマスターCSVを選択してください。");
+async function saveListingMaster(market) {
+  const prefix = market.toLowerCase();
+  const pending = listingMasterState[market].pending;
+  if (!pending) throw new Error("先に" + market + "の全件CSVを選択してください。");
   await refreshInitialRunState();
-  if (isStep1Running()) throw new Error("STEP1実行中はSGマスターを更新できません。");
-  const previous = await getSgMasterInfo();
-  const nextCount = sgPendingCsv.values.length;
+  if (isStep1Running()) throw new Error("STEP1実行中は出品済みマスターを更新できません。");
+  const previous = await getListingMasterInfo(market);
+  const nextCount = pending.values.length;
   if (previous.count && nextCount < previous.count * 0.8) {
-    throw new Error(`SGマスター件数が大幅に減少しています（${previous.count}→${nextCount}）。全件Excelから作成したCSVか確認してください。`);
+    throw new Error(market + "マスター件数が20%を超えて減少するため更新を停止しました（" +
+      previous.count + "→" + nextCount + "）。");
   }
-  if (!confirm(`SG出品済みASINを全件置換します。\n現在：${previous.count}件\n更新後：${nextCount}件\n差分ファイルではないことを確認しましたか？`)) return;
-  const path = "input/shopee_sg_existing_asin.csv";
-  const csv = "asin\n" + sgPendingCsv.values.join("\n") + "\n";
+  if (!confirm(market + "出品済み商品を全件置換します。\n現在：" + previous.count +
+      "件\n更新後：" + nextCount + "件\n差分ではなく全件CSVであることを確認しましたか？")) return;
+  const path = listingMasterState[market].path;
+  const csv = "asin\n" + pending.values.join("\n") + "\n";
   const body = {
-    message: "Update Shopee SG existing ASIN master",
+    message: "Update Shopee " + market + " existing ASIN master",
     content: textToBase64(csv),
     branch: CONFIG.branch
   };
   if (previous.sha) body.sha = previous.sha;
-  await githubFetch(`/contents/${encodeURIComponentPath(path)}`, {
-    method: "PUT",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body)
+  await githubFetch("/contents/" + encodeURIComponentPath(path), {
+    method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
   });
-  sgPreviousCount = nextCount;
-  sgPendingCsv = null;
-  $("sgMasterInput").value = "";
-  $("sgMasterSaveBtn").disabled = true;
-  $("sgMasterPreview").textContent = `SGマスター更新済み：${nextCount} ASIN`;
-  log(`SGマスターを更新しました：${nextCount} ASIN`);
+  listingMasterState[market].pending = null;
+  $(prefix + "MasterInput").value = "";
+  $(prefix + "MasterSaveBtn").disabled = true;
+  $(prefix + "MasterPreview").textContent = market + "マスター更新済み：" + nextCount + "件";
+  log(market + "出品済みASINマスターを更新しました：" + nextCount + "件");
 }
 
 function bindEvents() {
@@ -1983,9 +1991,12 @@ function bindEvents() {
   $("workflowText").textContent = CONFIG.workflow;
   $("lastUpdatedText").textContent = CONFIG.lastUpdated;
 
-  $("sgMasterInput").addEventListener("change", () => guard(selectSgMasterFile));
-  $("sgMasterCheckBtn").addEventListener("click", () => guard(checkSgMaster));
-  $("sgMasterSaveBtn").addEventListener("click", () => guard(saveSgMaster));
+  for (const market of ["PH", "SG"]) {
+    const prefix = market.toLowerCase();
+    $(prefix + "MasterInput").addEventListener("change", () => guard(() => selectListingMasterFile(market)));
+    $(prefix + "MasterCheckBtn").addEventListener("click", () => guard(() => checkListingMaster(market)));
+    $(prefix + "MasterSaveBtn").addEventListener("click", () => guard(() => saveListingMaster(market)));
+  }
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("copyCategoryBtn").addEventListener("click", () => guard(copyCategoryCandidate));
