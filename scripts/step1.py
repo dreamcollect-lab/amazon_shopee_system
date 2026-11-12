@@ -919,6 +919,7 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
 
     t0 = time.time()
     judged_rows = []
+    safe_variant_families = {}
 
     for _, row in standard_df.iterrows():
         row_dict = row.to_dict()
@@ -950,6 +951,20 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
             judged_rows.append(row_dict)
             continue
 
+        family = family_key(row_dict.get("title", ""))
+        if family and family in safe_variant_families:
+            reference = safe_variant_families[family]
+            row_dict["status"] = "CHECK"
+            row_dict["hit_type"] = "batch_variant_risk"
+            row_dict["hit_value"] = family
+            row_dict["out_reason"] = (
+                "今回CSV内の別ASINと同一シリーズ・商品種別。"
+                "色違い・ペン先違い等の可能性があるため要確認。"
+                f" 先行候補ASIN={reference['asin']}; 先行商品名={reference['title'][:150]}"
+            )
+            judged_rows.append(row_dict)
+            continue
+
         cat_status, cat_hit_type, cat_hit_value, cat_reason = judge_category(
             row_dict,
             category_name,
@@ -974,6 +989,11 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
                 row_dict["hit_value"] = price_hit_value
                 row_dict["out_reason"] = price_reason
 
+        if row_dict["status"] == "SAFE" and family:
+            safe_variant_families[family] = {
+                "asin": row_dict.get("asin", ""),
+                "title": row_dict.get("title", "")
+            }
         judged_rows.append(row_dict)
 
     judged_df = pd.DataFrame(judged_rows, columns=standard_df.columns)
