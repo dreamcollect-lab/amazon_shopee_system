@@ -31,6 +31,8 @@ import pandas as pd
 # =========================================================
 
 
+from sg_variant_check import load_sg_catalog, check_sg_variant, family_key
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 INPUT_DIR = BASE_DIR / "input"
@@ -52,6 +54,7 @@ NG_MASTER_CSV = INPUT_DIR / "ng_master.csv"
 CATEGORY_RULES_CSV = INPUT_DIR / "category_rules.csv"
 SHOPEE_EXISTING_ASIN_CSV = INPUT_DIR / "shopee_existing_asin.csv"
 SHOPEE_SG_EXISTING_ASIN_CSV = INPUT_DIR / "shopee_sg_existing_asin.csv"
+SHOPEE_SG_TITLES_CSV = INPUT_DIR / "shopee_sg_titles.csv"
 SUMMARY_FILE = BASE_DIR / "summary.txt"
 MOVE_TO_PROCESSED = os.environ.get("STEP1_MOVE_TO_PROCESSED", "").strip() == "1"
 
@@ -831,7 +834,7 @@ def judge_category(row, category_name, rule_df):
 # メイン処理
 # -------------------------
 
-def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rules_df, timestamp, logs):
+def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rules_df, timestamp, logs, sg_title_index):
     process_start = time.time()
     category_name, price_min, price_max = parse_input_filename(amazon_csv)
 
@@ -935,6 +938,15 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
             row_dict["hit_type"] = dup_hit_type
             row_dict["hit_value"] = dup_hit_value
             row_dict["out_reason"] = dup_reason
+            judged_rows.append(row_dict)
+            continue
+
+        variant = check_sg_variant(row_dict.get("title", ""), row_dict.get("asin", ""), sg_title_index)
+        if variant:
+            row_dict["status"] = "CHECK"
+            row_dict["hit_type"] = variant["hit_type"]
+            row_dict["hit_value"] = variant["hit_value"]
+            row_dict["out_reason"] = variant["out_reason"]
             judged_rows.append(row_dict)
             continue
 
@@ -1158,6 +1170,7 @@ def main():
     ng_data = load_ng_master()
     existing_asin_set = load_existing_asins()
     category_rules_df = load_category_rules()
+    sg_title_index = load_sg_catalog(SHOPEE_SG_TITLES_CSV)
     amazon_csv_files = find_amazon_csv_files()
     t1 = time.time()
 
@@ -1170,6 +1183,7 @@ def main():
     logs.append(f"NG商品説明数: {len(ng_data['description_ng'])}")
     logs.append(f"NGカテゴリ数: {len(ng_data['category_ng'])}")
     logs.append(f"Shopee出品済みASIN数: {len(existing_asin_set)}")
+    logs.append(f"SG類似商品比較グループ数: {len(sg_title_index)}")
     logs.append(f"カテゴリルール数: {len(category_rules_df)}")
     logs.append(f"Amazon CSV数: {len(amazon_csv_files)}")
 
@@ -1192,7 +1206,8 @@ def main():
             existing_asin_set=existing_asin_set,
             category_rules_df=category_rules_df,
             timestamp=timestamp,
-            logs=logs
+            logs=logs,
+            sg_title_index=sg_title_index
         )
         if result:
             process_summaries.append(result)
