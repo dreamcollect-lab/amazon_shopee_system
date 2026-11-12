@@ -6,7 +6,7 @@ const CONFIG = {
   tokenKey: "amazonShopeeGithubPat",
   ignoredRunsKey: "amazonShopeeIgnoredWorkflowRuns",
   sharedIgnoredRunsPath: "ignored_workflow_runs.json",
-  lastUpdated: "2026/11/06",
+  lastUpdated: "2026/11/12",
   workflowRunsPerPage: 100,
   staleCsvMs: 60 * 60 * 1000
 };
