@@ -2018,6 +2018,92 @@ async function saveListingMaster(market) {
   await checkListingMaster(market);
 }
 
+
+let sgTitlePending = null;
+function parseSgTitleCsv(text) {
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') {cell += '"'; i++;}
+      else quoted = !quoted;
+    } else if (ch === "," && !quoted) {row.push(cell); cell = "";}
+    else if ((ch === "\n" || ch === "\r") && !quoted) {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); if (row.some(x => x.trim())) rows.push(row);
+      row = []; cell = "";
+    } else cell += ch;
+  }
+  if (quoted) throw new Error("商品名CSVの引用符が閉じられていません。");
+  row.push(cell); if (row.some(x => x.trim())) rows.push(row);
+  if (!rows.length) throw new Error("商品名CSVが空です。");
+  const head = rows.shift().map(x => x.replace(/^\uFEFF/, "").trim().toLowerCase());
+  const cols = ["asin", "product_id", "title"].map(x => head.indexOf(x));
+  if (cols.some(x => x < 0)) throw new Error("商品名CSVには asin,product_id,title 列が必要です。");
+  const seen = new Set(), data = [];
+  for (const [i, values] of rows.entries()) {
+    const [asin, id, title] = cols.map(j => (values[j] || "").trim());
+    if (!/^[A-Z0-9]{10}$/.test(asin.toUpperCase()) || !title)
+      throw new Error("商品名CSVの" + (i + 2) + "行目に不正なASINまたは空の商品名があります。");
+    const key = asin.toUpperCase() + ":" + id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    data.push([asin.toUpperCase(), id, title]);
+  }
+  if (!data.length) throw new Error("商品名CSVに商品がありません。");
+  return data;
+}
+function csvQuote(value) {
+  return '"' + String(value).replace(/"/g, '""') + '"';
+}
+async function getSgTitleInfo() {
+  const path = "input/shopee_sg_titles.csv";
+  const data = await publicMasterFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + CONFIG.branch);
+  const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
+  const rows = parseSgTitleCsv(new TextDecoder("utf-8").decode(bytes));
+  return {sha: data.sha, count: rows.length};
+}
+async function checkSgTitleMaster() {
+  const info = await getSgTitleInfo();
+  $("sgTitlePreview").textContent = "現在の商品名マスター：" + info.count + "件" +
+    (sgTitlePending ? " / 更新候補：" + sgTitlePending.length + "件" : "");
+}
+async function selectSgTitleFile() {
+  sgTitlePending = null;
+  $("sgTitleSaveBtn").disabled = true;
+  const file = $("sgTitleInput").files?.[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith(".csv") || file.size > 10 * 1024 * 1024)
+    throw new Error("10MB以下の商品名CSVを選択してください。");
+  const rows = parseSgTitleCsv(await file.text());
+  const current = await getSgTitleInfo();
+  sgTitlePending = rows;
+  $("sgTitlePreview").textContent = "現在：" + current.count + "件 / 更新候補：" + rows.length + "件";
+  $("sgTitleSaveBtn").disabled = false;
+}
+async function saveSgTitleMaster() {
+  if (!sgTitlePending) throw new Error("商品名CSVを選択してください。");
+  await refreshInitialRunState();
+  if (isStep1Running()) throw new Error("STEP1実行中は更新できません。");
+  const current = await getSgTitleInfo();
+  if (current.count && sgTitlePending.length < current.count * 0.8)
+    throw new Error("商品名マスター件数が20%を超えて減少するため更新を停止しました。");
+  if (!confirm("SGの商品名マスターを全件置換します。現在：" + current.count +
+    "件、更新後：" + sgTitlePending.length + "件。全件データであることを確認しましたか？")) return;
+  const csv = "asin,product_id,title\n" + sgTitlePending.map(row => row.map(csvQuote).join(",")).join("\n") + "\n";
+  await githubFetch("/contents/input/shopee_sg_titles.csv", {
+    method: "PUT", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({message:"Update SG title master",content:textToBase64(csv),
+      sha:current.sha,branch:CONFIG.branch})
+  });
+  sgTitlePending = null;
+  $("sgTitleInput").value = "";
+  $("sgTitleSaveBtn").disabled = true;
+  await checkSgTitleMaster();
+  log("SG商品名マスターを更新しました。");
+}
+
 function bindEvents() {
   $("ownerText").textContent = CONFIG.owner;
   $("repoText").textContent = CONFIG.repo;
@@ -2031,6 +2117,9 @@ function bindEvents() {
     $(prefix + "MasterCheckBtn").addEventListener("click", () => guard(() => checkListingMaster(market)));
     $(prefix + "MasterSaveBtn").addEventListener("click", () => guard(() => saveListingMaster(market)));
   }
+  $("sgTitleInput").addEventListener("change", () => guard(selectSgTitleFile));
+  $("sgTitleCheckBtn").addEventListener("click", () => guard(checkSgTitleMaster));
+  $("sgTitleSaveBtn").addEventListener("click", () => guard(saveSgTitleMaster));
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("copyCategoryBtn").addEventListener("click", () => guard(copyCategoryCandidate));
