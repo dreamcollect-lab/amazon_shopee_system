@@ -185,6 +185,18 @@
             <button id="sgMasterSaveBtn" type="button" disabled>SGマスターを更新</button>
           </div>
           <p class="hint">全件スナップショット専用です。差分ファイルを登録しないでください。更新はGit履歴に残ります。STEP1実行中は更新できません。</p>
+<div class="notice"><strong>SG類似商品判定用の商品名マスター</strong>
+            ASINが違っても同一シリーズの色違い・ペン先違いをCHECKへ送ります。Shopeeの商品一覧から asin,product_id,title のCSVを登録してください。
+          </div>
+          <label for="sgTitleInput">SG商品名CSV（asin,product_id,title）</label>
+          <input id="sgTitleInput" type="file" accept=".csv,text/csv">
+          <p id="sgTitlePreview">現在のSG商品名マスターを確認できます。</p>
+          <div class="actions">
+            <button id="sgTitleCheckBtn" type="button" class="secondary">現在の商品名マスターを確認</button>
+            <button id="sgTitleSaveBtn" type="button" disabled>SG商品名マスターを更新</button>
+          </div>
+          <p class="hint">SGの全出品商品を含むCSVを登録してください。商品名は保存しますが、画像は比較しません。</p>
+          
         </section>
 
         <section id="masters" class="work-panel" data-view="rules">

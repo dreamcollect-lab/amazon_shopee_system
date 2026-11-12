@@ -1,0 +1,16 @@
+name: Validate SG variant check
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: PYTHONPATH=scripts python -m unittest scripts/test_sg_variant_check.py -v
+      - run: python -m py_compile scripts/step1.py scripts/sg_variant_check.py
+      - run: node --check docs/app.js
