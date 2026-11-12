@@ -1,7 +1,23 @@
 import unittest
-from sg_variant_check import family_key, check_sg_variant
+from sg_variant_check import family_key, check_sg_variant, load_sg_catalog
+from pathlib import Path
 
 class SgVariantTests(unittest.TestCase):
+    def test_real_sg_snapshot_against_deleted_pen_variants(self):
+        catalog = Path(__file__).resolve().parents[1] / "input" / "shopee_sg_titles.csv"
+        index = load_sg_catalog(catalog)
+        self.assertGreaterEqual(sum(len(v) for v in index.values()), 20)
+        deleted_examples = [
+            "Kaweco Piston Sport Classic Black Gold Fountain Pen Fine",
+            "Platinum Curidas Urban Green Fountain Pen Extra Fine",
+            "Platinum Curidas Urban Green Fountain Pen Fine",
+            "Platinum Curidas Grand Red Fountain Pen Fine",
+            "Kaweco Classic Sport Black Fountain Pen Fine",
+        ]
+        for title in deleted_examples:
+            with self.subTest(title=title):
+                self.assertIsNotNone(check_sg_variant(title, "B000000001", index))
+
     def test_pen_nib_and_color_variants(self):
         index = {
             "platinum curidas|fountain pen": [
