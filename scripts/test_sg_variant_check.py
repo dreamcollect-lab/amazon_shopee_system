@@ -24,6 +24,14 @@ class SgSimilarityTests(unittest.TestCase):
         self.assertIsNotNone(index.match("Sony WH 1000XM5 Wireless Headphones Silver", "B000000004"))
         self.assertIsNone(index.match("Sony WH 1000XM4 Wireless Headphones", "B000000004"))
 
+    def test_eighty_percent_threshold(self):
+        index = SgTitleIndex()
+        index.add("B000000001", "Acme Aurora Travel Bottle Stainless Steel Black", "100")
+        self.assertIsNotNone(index.match(
+            "Acme Aurora Travel Bottle Stainless White", "B000000002"))
+        self.assertIsNone(index.match(
+            "Acme Aurora Travel Mug Ceramic White", "B000000003"))
+
     def test_exact_asin_is_not_similarity(self):
         index = SgTitleIndex()
         index.add("B000000001", "Logitech MX Master 3S Wireless Mouse Black", "100")

@@ -15,6 +15,8 @@ ASIN = re.compile(r"[A-Z0-9]{10}")
 MODEL = re.compile(r"^(?=.*\d)[a-z0-9]{3,}$")
 COLORS = set("black white red blue green yellow orange pink purple brown gray grey gold silver beige navy ivory clear transparent matte glossy charcoal midnight rose urban grand".split())
 VARIANTS = set("xs s m l xl xxl small medium large extra fine ef f bb nib point mm cm inch inches gb tb ml litre liter liters kg g oz pack packs pcs piece pieces set sets size color colour variant edition".split())
+# Distinct named product lines must not be merged merely because generic terms match.
+DISTINCT_LINES = (frozenset({"master", "anywhere"}),)
 STOP = set("the a an and or with for of in on to from by new genuine original official product item japan japanese imported compatible type model series".split())
 # Distinctive technical model IDs should be kept even if they contain digits.
 TOKEN = re.compile(r"[a-z]+[0-9a-z]*|[0-9]+[a-z][a-z0-9]*|[0-9]+|[一-龯ぁ-んァ-ヴー]{2,}")
@@ -64,6 +66,11 @@ def _model_conflict(a, b):
 def _score(a, b):
     if _model_conflict(a, b):
         return 0
+    for lines in DISTINCT_LINES:
+        left = a["tokens"] & lines
+        right = b["tokens"] & lines
+        if left and right and left != right:
+            return 0
     intersection = len(a["tokens"] & b["tokens"])
     if intersection < 2:
         return 0
@@ -112,7 +119,7 @@ class SgTitleIndex:
                 continue
             same_pen = bool(pen and row["pen"] == pen)
             score = _score(f, row["features"])
-            if not same_pen and score < 0.90:
+            if not same_pen and score < 0.80:
                 continue
             rank = 1.0 if same_pen else score
             if best is None or rank > best[0]:
