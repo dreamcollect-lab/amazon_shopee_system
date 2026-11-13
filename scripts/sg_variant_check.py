@@ -112,7 +112,7 @@ class SgTitleIndex:
                 continue
             same_pen = bool(pen and row["pen"] == pen)
             score = _score(f, row["features"])
-            if not same_pen and score < 0.90:
+            if not same_pen and score < 0.80:
                 continue
             rank = 1.0 if same_pen else score
             if best is None or rank > best[0]:
