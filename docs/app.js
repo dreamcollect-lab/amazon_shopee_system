@@ -2163,6 +2163,7 @@ async function saveSgUnifiedExcel() {
     $("sgUnifiedPreview").textContent = "SGマスター更新済み：ASIN " + pending.asins.length +
       "件・商品名 " + pending.catalog.length + "行";
     log("SGのASIN・商品名マスターを1コミットで更新しました。");
+    $("sgMasterCount").textContent = pending.asins.length.toLocaleString("ja-JP") + "件";
   } catch (error) {
     $("sgUnifiedSaveBtn").disabled = false;
     throw error;
