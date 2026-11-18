@@ -19,6 +19,14 @@ class Step1DuplicateSafetyTests(unittest.TestCase):
         self.assertEqual(step1.extract_asin("https://amazon.co.jp/dp/b000000002"), "B000000002")
         self.assertEqual(step1.judge_duplicate(row, {"B000000009"})[0], "SAFE")
 
+    def test_every_current_sg_asin_is_rejected(self):
+        master = Path(__file__).resolve().parents[1] / "input" / "shopee_sg_existing_asin.csv"
+        values = pd.read_csv(master, dtype=str)["asin"].str.upper().tolist()
+        self.assertGreater(len(values), 4000)
+        existing = set(values)
+        for asin in values:
+            self.assertEqual(step1.judge_duplicate({"asin": asin}, existing)[0], "OUT_DUPLICATE")
+
     def test_cross_csv_and_missing_asin_fail_closed(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
