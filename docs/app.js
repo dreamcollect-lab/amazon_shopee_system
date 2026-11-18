@@ -1917,7 +1917,9 @@ function parseListingAsinCsv(text) {
 }
 
 async function publicMasterFetch(path) {
-  const response = await fetch(apiUrl(path), {
+  const url = apiUrl(path);
+  const separator = url.includes("?") ? "&" : "?";
+  const response = await fetch(url + separator + "_fresh=" + Date.now(), {
     headers: {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
     cache: "no-store"
   });
@@ -2161,6 +2163,7 @@ async function saveSgUnifiedExcel() {
     $("sgUnifiedPreview").textContent = "SGマスター更新済み：ASIN " + pending.asins.length +
       "件・商品名 " + pending.catalog.length + "行";
     log("SGのASIN・商品名マスターを1コミットで更新しました。");
+    $("sgMasterCount").textContent = pending.asins.length.toLocaleString("ja-JP") + "件";
   } catch (error) {
     $("sgUnifiedSaveBtn").disabled = false;
     throw error;
