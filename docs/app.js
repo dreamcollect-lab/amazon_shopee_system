@@ -2161,10 +2161,16 @@ async function saveSgUnifiedExcel() {
     $("sgUnifiedPreview").textContent = "SGマスター更新済み：ASIN " + pending.asins.length +
       "件・商品名 " + pending.catalog.length + "行";
     log("SGのASIN・商品名マスターを1コミットで更新しました。");
-    await checkListingMaster("SG");
   } catch (error) {
     $("sgUnifiedSaveBtn").disabled = false;
     throw error;
+  }
+  // Commit has already succeeded. A readback error must not invite a second upload.
+  try {
+    await checkListingMaster("SG");
+  } catch (error) {
+    log("SGマスター保存済み。ただし件数の再取得に失敗しました: " +
+      (error.message || String(error)), "error");
   }
 }
 
