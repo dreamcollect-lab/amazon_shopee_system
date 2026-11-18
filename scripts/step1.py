@@ -1037,7 +1037,7 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
 
     t0 = time.time()
 
-    category_slug = safe_filename_part(category_name)
+    # Include the source filename to prevent different CSVs of one category overwriting each other.\n    category_slug = safe_filename_part(amazon_csv.stem)
 
     standard_path = STANDARD_DIR / f"standard_{category_slug}_{timestamp}.csv"
     safe_path = SAFE_DIR / f"safe_{category_slug}_{timestamp}.csv"
