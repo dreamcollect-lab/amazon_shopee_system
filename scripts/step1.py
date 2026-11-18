@@ -398,9 +398,9 @@ def extract_asin(text):
     ]
 
     for pattern in patterns:
-        match = re.search(pattern, text)
+        match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
-            return match.group(1)
+            return match.group(1).upper()
 
     return ""
 
