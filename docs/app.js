@@ -2063,8 +2063,20 @@ async function getSgTitleInfo() {
   const data = await publicMasterFetch("/contents/input/shopee_sg_titles.csv?ref=" + encodeURIComponent(CONFIG.branch));
   const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
   const text = new TextDecoder("utf-8").decode(bytes);
-  const lines = text.trim().split(/\r?\n/);
-  return {sha: data.sha, count: Math.max(0, lines.length - 1)};
+  let quoted = false, count = 0, fieldHasData = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') i++;
+      else quoted = !quoted;
+    } else if (ch === "\n" && !quoted) {
+      if (fieldHasData) count++;
+      fieldHasData = false;
+    } else if (ch !== "\r") fieldHasData = true;
+  }
+  if (quoted) throw new Error("SG商品名マスターのCSV引用符が不正です。");
+  if (fieldHasData) count++;
+  return {sha: data.sha, count: Math.max(0, count - 1)};
 }
 async function selectSgUnifiedExcel() {
   sgUnifiedPending = null;
