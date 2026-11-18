@@ -1963,8 +1963,16 @@ async function checkListingMaster(market) {
     log(market + "マスター最終更新日の取得に失敗: " + (error.message || String(error)), "error");
   }
   const pending = listingMasterState[market].pending;
-  $(prefix + "MasterPreview").textContent =
-    "現在：" + info.count + " ASIN" + (pending ? " / 更新候補：" + pending.values.length + " ASIN" : "");
+  if (market === "SG") {
+    const titleInfo = await getSgTitleInfo();
+    $("sgUnifiedPreview").textContent = "現在：ASIN " + info.count + "件・商品名 " +
+      titleInfo.count + "行" + (sgUnifiedPending ?
+        " / 更新候補：ASIN " + sgUnifiedPending.asins.length + "件・商品名 " +
+        sgUnifiedPending.catalog.length + "行" : "");
+  } else {
+    $(prefix + "MasterPreview").textContent =
+      "現在：" + info.count + " ASIN" + (pending ? " / 更新候補：" + pending.values.length + " ASIN" : "");
+  }
   log(market + "出品済みASINマスターを確認しました：" + info.count + "件");
 }
 
