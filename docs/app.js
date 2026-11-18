@@ -1917,7 +1917,9 @@ function parseListingAsinCsv(text) {
 }
 
 async function publicMasterFetch(path) {
-  const response = await fetch(apiUrl(path), {
+  const url = apiUrl(path);
+  const separator = url.includes("?") ? "&" : "?";
+  const response = await fetch(url + separator + "_fresh=" + Date.now(), {
     headers: {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
     cache: "no-store"
   });
