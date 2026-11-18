@@ -2132,7 +2132,7 @@ async function commitSgMastersAtomically(asinCsv, titleCsv) {
     })
   });
   // No force push: reject if another writer changed main in the meantime.
-  await githubFetch(refPath, {
+  await githubFetch("/git/refs/heads/" + encodeURIComponent(CONFIG.branch), {
     method: "PATCH", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({sha: commit.sha, force: false})
   });
