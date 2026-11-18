@@ -398,9 +398,9 @@ def extract_asin(text):
     ]
 
     for pattern in patterns:
-        match = re.search(pattern, text)
+        match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
-            return match.group(1)
+            return match.group(1).upper()
 
     return ""
 
@@ -790,12 +790,17 @@ def judge_ng(row, ng_data):
     return "SAFE", "", "", ""
 
 
+def candidate_asins(row):
+    """All Amazon ASIN references in this row; never trust only the first URL."""
+    values = [str(row.get("asin", "")).strip().upper()]
+    values.extend(str(row.get("all_asins", "")).upper().split(","))
+    return {value for value in values if re.fullmatch(r"[A-Z0-9]{10}", value)}
+
+
 def judge_duplicate(row, existing_asin_set):
-    asin = str(row.get("asin", "")).strip().upper()
-
-    if asin and asin in existing_asin_set:
-        return "OUT_DUPLICATE", "duplicate_asin", asin, "Shopee出品済みASINに一致"
-
+    matches = sorted(candidate_asins(row) & existing_asin_set)
+    if matches:
+        return "OUT_DUPLICATE", "duplicate_asin", ",".join(matches), "PH/SG出品済みASINに一致（全候補照合）"
     return "SAFE", "", "", ""
 
 
@@ -834,7 +839,7 @@ def judge_category(row, category_name, rule_df):
 # メイン処理
 # -------------------------
 
-def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rules_df, timestamp, logs, sg_title_index):
+def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rules_df, timestamp, logs, sg_title_index, batch_title_index=None, seen_safe_asins=None):
     process_start = time.time()
     category_name, price_min, price_max = parse_input_filename(amazon_csv)
 
@@ -907,8 +912,8 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
             "duration": process_end - process_start,
         }
 
-    standard_df = standard_df[standard_df["asin"] != ""].copy()
-    standard_df = standard_df.drop_duplicates(subset=["asin"]).reset_index(drop=True)
+    # Keep rows without an ASIN for manual review, never silently discard them.
+    standard_df = standard_df.drop_duplicates(subset=["asin"], keep="first").reset_index(drop=True) if standard_df["asin"].ne("").all() else standard_df.reset_index(drop=True)
     standard_df["status"] = "STANDARD"
     standard_df["hit_type"] = ""
     standard_df["hit_value"] = ""
@@ -919,10 +924,40 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
 
     t0 = time.time()
     judged_rows = []
-    batch_title_index = SgTitleIndex()
+    if batch_title_index is None:
+        batch_title_index = SgTitleIndex()
+    if seen_safe_asins is None:
+        seen_safe_asins = set()
 
     for _, row in standard_df.iterrows():
         row_dict = row.to_dict()
+
+        asins = candidate_asins(row_dict)
+        # An unknown or ambiguous identity is never allowed into the exportable SAFE CSV.
+        if not asins:
+            row_dict.update(status="CHECK", hit_type="asin_missing",
+                            hit_value="", out_reason="Amazon ASINを特定できません。出品前に確認してください。")
+            judged_rows.append(row_dict)
+            continue
+        # Exact matches take precedence even when multiple URLs appear in one source row.
+        dup_status, dup_hit_type, dup_hit_value, dup_reason = judge_duplicate(row_dict, existing_asin_set)
+        if dup_status == "OUT_DUPLICATE":
+            row_dict.update(status=dup_status, hit_type=dup_hit_type,
+                            hit_value=dup_hit_value, out_reason=dup_reason)
+            judged_rows.append(row_dict)
+            continue
+        if len(asins) != 1:
+            row_dict.update(status="CHECK", hit_type="multiple_asins",
+                            hit_value=",".join(sorted(asins)),
+                            out_reason="複数のAmazon ASINが存在するため商品を一意に特定できません。")
+            judged_rows.append(row_dict)
+            continue
+        if asins & seen_safe_asins:
+            row_dict.update(status="CHECK", hit_type="batch_duplicate_asin",
+                            hit_value=",".join(sorted(asins & seen_safe_asins)),
+                            out_reason="今回のSTEP1の別行・別CSVですでにSAFEに分類されたASINです。")
+            judged_rows.append(row_dict)
+            continue
 
         ng_status, ng_hit_type, ng_hit_value, ng_reason = judge_ng(row_dict, ng_data)
         if ng_status == "OUT_NG":
@@ -930,15 +965,6 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
             row_dict["hit_type"] = ng_hit_type
             row_dict["hit_value"] = ng_hit_value
             row_dict["out_reason"] = ng_reason
-            judged_rows.append(row_dict)
-            continue
-
-        dup_status, dup_hit_type, dup_hit_value, dup_reason = judge_duplicate(row_dict, existing_asin_set)
-        if dup_status == "OUT_DUPLICATE":
-            row_dict["status"] = "OUT_DUPLICATE"
-            row_dict["hit_type"] = dup_hit_type
-            row_dict["hit_value"] = dup_hit_value
-            row_dict["out_reason"] = dup_reason
             judged_rows.append(row_dict)
             continue
 
@@ -988,9 +1014,16 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
 
         if row_dict["status"] == "SAFE":
             batch_title_index.add(row_dict.get("asin", ""), row_dict.get("title", ""))
+            seen_safe_asins.update(asins)
         judged_rows.append(row_dict)
 
     judged_df = pd.DataFrame(judged_rows, columns=standard_df.columns)
+
+    # Final fail-closed invariant: no existing or ambiguous ASIN may be exported SAFE.
+    for _, safe_row in judged_df[judged_df["status"] == "SAFE"].iterrows():
+        asins = candidate_asins(safe_row)
+        if len(asins) != 1 or asins & existing_asin_set:
+            raise RuntimeError("SAFE出力のASIN安全監査に失敗。CSVの出力を中止しました。")
 
     safe_df = judged_df[judged_df["status"] == "SAFE"].copy()
     out_ng_df = judged_df[judged_df["status"] == "OUT_NG"].copy()
@@ -1004,7 +1037,8 @@ def process_one_amazon_csv(amazon_csv, ng_data, existing_asin_set, category_rule
 
     t0 = time.time()
 
-    category_slug = safe_filename_part(category_name)
+    # Include the source filename to prevent different CSVs of one category overwriting each other.
+    category_slug = safe_filename_part(amazon_csv.stem)
 
     standard_path = STANDARD_DIR / f"standard_{category_slug}_{timestamp}.csv"
     safe_path = SAFE_DIR / f"safe_{category_slug}_{timestamp}.csv"
@@ -1213,6 +1247,8 @@ def main():
         return
 
     process_summaries = []
+    batch_title_index = SgTitleIndex()
+    seen_safe_asins = set()
     for amazon_csv in amazon_csv_files:
         result = process_one_amazon_csv(
             amazon_csv=amazon_csv,
@@ -1221,7 +1257,9 @@ def main():
             category_rules_df=category_rules_df,
             timestamp=timestamp,
             logs=logs,
-            sg_title_index=sg_title_index
+            sg_title_index=sg_title_index,
+            batch_title_index=batch_title_index,
+            seen_safe_asins=seen_safe_asins
         )
         if result:
             process_summaries.append(result)
