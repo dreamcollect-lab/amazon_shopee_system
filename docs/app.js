@@ -6,7 +6,7 @@ const CONFIG = {
   tokenKey: "amazonShopeeGithubPat",
   ignoredRunsKey: "amazonShopeeIgnoredWorkflowRuns",
   sharedIgnoredRunsPath: "ignored_workflow_runs.json",
-  lastUpdated: "2026/11/12",
+  lastUpdated: "2026/11/18",
   workflowRunsPerPage: 100,
   staleCsvMs: 60 * 60 * 1000
 };
@@ -1963,8 +1963,16 @@ async function checkListingMaster(market) {
     log(market + "マスター最終更新日の取得に失敗: " + (error.message || String(error)), "error");
   }
   const pending = listingMasterState[market].pending;
-  $(prefix + "MasterPreview").textContent =
-    "現在：" + info.count + " ASIN" + (pending ? " / 更新候補：" + pending.values.length + " ASIN" : "");
+  if (market === "SG") {
+    const titleInfo = await getSgTitleInfo();
+    $("sgUnifiedPreview").textContent = "現在：ASIN " + info.count + "件・商品名 " +
+      titleInfo.count + "行" + (sgUnifiedPending ?
+        " / 更新候補：ASIN " + sgUnifiedPending.asins.length + "件・商品名 " +
+        sgUnifiedPending.catalog.length + "行" : "");
+  } else {
+    $(prefix + "MasterPreview").textContent =
+      "現在：" + info.count + " ASIN" + (pending ? " / 更新候補：" + pending.values.length + " ASIN" : "");
+  }
   log(market + "出品済みASINマスターを確認しました：" + info.count + "件");
 }
 
@@ -2019,89 +2027,151 @@ async function saveListingMaster(market) {
 }
 
 
-let sgTitlePending = null;
-function parseSgTitleCsv(text) {
-  const rows = [];
-  let row = [], cell = "", quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === '"') {
-      if (quoted && text[i + 1] === '"') {cell += '"'; i++;}
-      else quoted = !quoted;
-    } else if (ch === "," && !quoted) {row.push(cell); cell = "";}
-    else if ((ch === "\n" || ch === "\r") && !quoted) {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell); if (row.some(x => x.trim())) rows.push(row);
-      row = []; cell = "";
-    } else cell += ch;
+// One Shopee SG Mass Update Excel -> two master CSVs, committed atomically.
+let sgUnifiedPending = null;
+function parseSgExcelWorkbook(workbook) {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) throw new Error("Excelの最初のシートが見つかりません。");
+  const rows = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
+  const headerIndex = rows.findIndex(row =>
+    row.some(value => String(value).trim().toLowerCase() === "parent sku") &&
+    row.some(value => String(value).trim().toLowerCase() === "product name") &&
+    row.some(value => String(value).trim().toLowerCase() === "product id")
+  );
+  if (headerIndex < 0) throw new Error("Shopee Mass Update形式の Product ID / Parent SKU / Product Name 列が見つかりません。");
+  const header = rows[headerIndex].map(value => String(value).trim().toLowerCase());
+  const idCol = header.indexOf("product id"), skuCol = header.indexOf("parent sku");
+  const nameCol = header.indexOf("product name");
+  const catalog = [], seen = new Map();
+  let skipped = 0;
+  for (let i = headerIndex + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const id = String(row[idCol] || "").trim();
+    const sku = String(row[skuCol] || "").trim();
+    const title = String(row[nameCol] || "").trim();
+    if (!id && !sku && !title) {skipped++; continue;}
+    if (!id || !sku || !title) throw new Error("Excel " + (i + 1) + "行目にProduct ID・Parent SKU・Product Nameの欠損があります。");
+    const match = sku.match(/(?:^|[-_])(B0[A-Z0-9]{8})(?:[-_]|$)/i);
+    if (!match) throw new Error("Excel " + (i + 1) + "行目のParent SKUからASINを抽出できません: " + sku.slice(0, 50));
+    const asin = match[1].toUpperCase();
+    if (seen.has(asin)) {
+      // Same ASIN can have multiple Shopee product IDs; retain both title rows.
+      if (seen.get(asin).has(id)) throw new Error("Excel " + (i + 1) + "行目にASINとProduct IDの重複があります。");
+      seen.get(asin).add(id);
+    } else seen.set(asin, new Set([id]));
+    catalog.push([asin, id, title]);
   }
-  if (quoted) throw new Error("商品名CSVの引用符が閉じられていません。");
-  row.push(cell); if (row.some(x => x.trim())) rows.push(row);
-  if (!rows.length) throw new Error("商品名CSVが空です。");
-  const head = rows.shift().map(x => x.replace(/^\uFEFF/, "").trim().toLowerCase());
-  const cols = ["asin", "product_id", "title"].map(x => head.indexOf(x));
-  if (cols.some(x => x < 0)) throw new Error("商品名CSVには asin,product_id,title 列が必要です。");
-  const seen = new Set(), data = [];
-  for (const [i, values] of rows.entries()) {
-    const [asin, id, title] = cols.map(j => (values[j] || "").trim());
-    if (!/^[A-Z0-9]{10}$/.test(asin.toUpperCase()) || !title)
-      throw new Error("商品名CSVの" + (i + 2) + "行目に不正なASINまたは空の商品名があります。");
-    const key = asin.toUpperCase() + ":" + id;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    data.push([asin.toUpperCase(), id, title]);
-  }
-  if (!data.length) throw new Error("商品名CSVに商品がありません。");
-  return data;
+  if (!catalog.length) throw new Error("Excelに有効な出品商品がありません。");
+  return {catalog, asins: [...seen.keys()].sort(), skipped};
 }
-function csvQuote(value) {
+function sgCsvQuote(value) {
   return '"' + String(value).replace(/"/g, '""') + '"';
 }
 async function getSgTitleInfo() {
-  const path = "input/shopee_sg_titles.csv";
-  const data = await publicMasterFetch("/contents/" + encodeURIComponentPath(path) + "?ref=" + CONFIG.branch);
+  const data = await publicMasterFetch("/contents/input/shopee_sg_titles.csv?ref=" + encodeURIComponent(CONFIG.branch));
   const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, "")), c => c.charCodeAt(0));
-  const rows = parseSgTitleCsv(new TextDecoder("utf-8").decode(bytes));
-  return {sha: data.sha, count: rows.length};
+  const text = new TextDecoder("utf-8").decode(bytes);
+  let quoted = false, count = 0, fieldHasData = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') i++;
+      else quoted = !quoted;
+    } else if (ch === "\n" && !quoted) {
+      if (fieldHasData) count++;
+      fieldHasData = false;
+    } else if (ch !== "\r") fieldHasData = true;
+  }
+  if (quoted) throw new Error("SG商品名マスターのCSV引用符が不正です。");
+  if (fieldHasData) count++;
+  return {sha: data.sha, count: Math.max(0, count - 1)};
 }
-async function checkSgTitleMaster() {
-  const info = await getSgTitleInfo();
-  $("sgTitlePreview").textContent = "現在の商品名マスター：" + info.count + "件" +
-    (sgTitlePending ? " / 更新候補：" + sgTitlePending.length + "件" : "");
-}
-async function selectSgTitleFile() {
-  sgTitlePending = null;
-  $("sgTitleSaveBtn").disabled = true;
-  const file = $("sgTitleInput").files?.[0];
+async function selectSgUnifiedExcel() {
+  sgUnifiedPending = null;
+  $("sgUnifiedSaveBtn").disabled = true;
+  const file = $("sgUnifiedInput").files?.[0];
   if (!file) return;
-  if (!file.name.toLowerCase().endsWith(".csv") || file.size > 10 * 1024 * 1024)
-    throw new Error("10MB以下の商品名CSVを選択してください。");
-  const rows = parseSgTitleCsv(await file.text());
-  const current = await getSgTitleInfo();
-  sgTitlePending = rows;
-  $("sgTitlePreview").textContent = "現在：" + current.count + "件 / 更新候補：" + rows.length + "件";
-  $("sgTitleSaveBtn").disabled = false;
+  if (!file.name.toLowerCase().endsWith(".xlsx") || file.size > 20 * 1024 * 1024)
+    throw new Error("20MB以下のShopee全商品Excel（.xlsx）を選択してください。");
+  if (!window.XLSX) throw new Error("Excel解析ライブラリを読み込めません。ネットワーク接続を確認して再読み込みしてください。");
+  const workbook = XLSX.read(await file.arrayBuffer(), {type: "array"});
+  const pending = parseSgExcelWorkbook(workbook);
+  const [oldAsin, oldTitle] = await Promise.all([getListingMasterInfo("SG"), getSgTitleInfo()]);
+  if (oldAsin.count && pending.asins.length < oldAsin.count * 0.8)
+    throw new Error("ASIN件数が20%を超えて減少するため停止しました（" + oldAsin.count + "→" + pending.asins.length + "）。");
+  if (oldTitle.count && pending.catalog.length < oldTitle.count * 0.8)
+    throw new Error("商品名件数が20%を超えて減少するため停止しました（" + oldTitle.count + "→" + pending.catalog.length + "）。");
+  sgUnifiedPending = pending;
+  $("sgUnifiedPreview").textContent =
+    "更新前：ASIN " + oldAsin.count + "件・商品名 " + oldTitle.count +
+    "件 / 更新後：ASIN " + pending.asins.length + "件・商品名 " + pending.catalog.length +
+    "行（空行 " + pending.skipped + "行）。内容を確認して一括更新してください。";
+  $("sgUnifiedSaveBtn").disabled = false;
 }
-async function saveSgTitleMaster() {
-  if (!sgTitlePending) throw new Error("商品名CSVを選択してください。");
-  await refreshInitialRunState();
-  if (isStep1Running()) throw new Error("STEP1実行中は更新できません。");
-  const current = await getSgTitleInfo();
-  if (current.count && sgTitlePending.length < current.count * 0.8)
-    throw new Error("商品名マスター件数が20%を超えて減少するため更新を停止しました。");
-  if (!confirm("SGの商品名マスターを全件置換します。現在：" + current.count +
-    "件、更新後：" + sgTitlePending.length + "件。全件データであることを確認しましたか？")) return;
-  const csv = "asin,product_id,title\n" + sgTitlePending.map(row => row.map(csvQuote).join(",")).join("\n") + "\n";
-  await githubFetch("/contents/input/shopee_sg_titles.csv", {
-    method: "PUT", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({message:"Update SG title master",content:textToBase64(csv),
-      sha:current.sha,branch:CONFIG.branch})
+async function commitSgMastersAtomically(asinCsv, titleCsv) {
+  // A single Git commit changes both files together, or neither file changes.
+  const refPath = "/git/ref/heads/" + encodeURIComponent(CONFIG.branch);
+  const ref = await githubFetch(refPath);
+  const headSha = ref.object.sha;
+  const headCommit = await githubFetch("/git/commits/" + headSha);
+  const tree = await githubFetch("/git/trees", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      base_tree: headCommit.tree.sha,
+      tree: [
+        {path: "input/shopee_sg_existing_asin.csv", mode: "100644", type: "blob", content: asinCsv},
+        {path: "input/shopee_sg_titles.csv", mode: "100644", type: "blob", content: titleCsv}
+      ]
+    })
   });
-  sgTitlePending = null;
-  $("sgTitleInput").value = "";
-  $("sgTitleSaveBtn").disabled = true;
-  await checkSgTitleMaster();
-  log("SG商品名マスターを更新しました。");
+  const commit = await githubFetch("/git/commits", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      message: "Update SG ASIN and title masters from one Shopee Excel",
+      tree: tree.sha, parents: [headSha]
+    })
+  });
+  // No force push: reject if another writer changed main in the meantime.
+  await githubFetch("/git/refs/heads/" + encodeURIComponent(CONFIG.branch), {
+    method: "PATCH", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({sha: commit.sha, force: false})
+  });
+}
+async function saveSgUnifiedExcel() {
+  const pending = sgUnifiedPending;
+  if (!pending) throw new Error("先にSGの全商品Excelを選択してください。");
+  await refreshInitialRunState();
+  if (isStep1Running()) throw new Error("STEP1実行中はマスターを更新できません。");
+  const [oldAsin, oldTitle] = await Promise.all([getListingMasterInfo("SG"), getSgTitleInfo()]);
+  if ((oldAsin.count && pending.asins.length < oldAsin.count * 0.8) ||
+      (oldTitle.count && pending.catalog.length < oldTitle.count * 0.8))
+    throw new Error("マスターの件数が20%を超えて減少したため更新を停止しました。");
+  if (!confirm("SGの全件Excelから2つのマスターを同時更新します。\n" +
+    "ASIN：" + oldAsin.count + "→" + pending.asins.length + "件\n" +
+    "商品名：" + oldTitle.count + "→" + pending.catalog.length + "行\n" +
+    "差分ではなく、SG全出品商品の一覧であることを確認しましたか？")) return;
+  const asinCsv = "asin\n" + pending.asins.join("\n") + "\n";
+  const titleCsv = "asin,product_id,title\n" +
+    pending.catalog.map(row => row.map(sgCsvQuote).join(",")).join("\n") + "\n";
+  $("sgUnifiedSaveBtn").disabled = true;
+  try {
+    await commitSgMastersAtomically(asinCsv, titleCsv);
+    sgUnifiedPending = null;
+    $("sgUnifiedInput").value = "";
+    $("sgUnifiedPreview").textContent = "SGマスター更新済み：ASIN " + pending.asins.length +
+      "件・商品名 " + pending.catalog.length + "行";
+    log("SGのASIN・商品名マスターを1コミットで更新しました。");
+  } catch (error) {
+    $("sgUnifiedSaveBtn").disabled = false;
+    throw error;
+  }
+  // Commit has already succeeded. A readback error must not invite a second upload.
+  try {
+    await checkListingMaster("SG");
+  } catch (error) {
+    log("SGマスター保存済み。ただし件数の再取得に失敗しました: " +
+      (error.message || String(error)), "error");
+  }
 }
 
 function bindEvents() {
@@ -2111,15 +2181,12 @@ function bindEvents() {
   $("workflowText").textContent = CONFIG.workflow;
   $("lastUpdatedText").textContent = CONFIG.lastUpdated;
 
-  for (const market of ["PH", "SG"]) {
-    const prefix = market.toLowerCase();
-    $(prefix + "MasterInput").addEventListener("change", () => guard(() => selectListingMasterFile(market)));
-    $(prefix + "MasterCheckBtn").addEventListener("click", () => guard(() => checkListingMaster(market)));
-    $(prefix + "MasterSaveBtn").addEventListener("click", () => guard(() => saveListingMaster(market)));
-  }
-  $("sgTitleInput").addEventListener("change", () => guard(selectSgTitleFile));
-  $("sgTitleCheckBtn").addEventListener("click", () => guard(checkSgTitleMaster));
-  $("sgTitleSaveBtn").addEventListener("click", () => guard(saveSgTitleMaster));
+  $("phMasterInput").addEventListener("change", () => guard(() => selectListingMasterFile("PH")));
+  $("phMasterCheckBtn").addEventListener("click", () => guard(() => checkListingMaster("PH")));
+  $("phMasterSaveBtn").addEventListener("click", () => guard(() => saveListingMaster("PH")));
+  $("sgMasterCheckBtn").addEventListener("click", () => guard(() => checkListingMaster("SG")));
+  $("sgUnifiedInput").addEventListener("change", () => guard(selectSgUnifiedExcel));
+  $("sgUnifiedSaveBtn").addEventListener("click", () => guard(saveSgUnifiedExcel));
   $("saveTokenBtn").addEventListener("click", saveToken);
   $("clearTokenBtn").addEventListener("click", clearToken);
   $("copyCategoryBtn").addEventListener("click", () => guard(copyCategoryCandidate));

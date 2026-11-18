@@ -1,0 +1,21 @@
+name: Validate SG single Excel update
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check docs/app.js
+      - run: node scripts/test_sg_excel_ui.cjs
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          html = Path("docs/index.html").read_text()
+          assert 'id="sgUnifiedInput"' in html
+          assert 'id="sgUnifiedSaveBtn"' in html
+          assert 'id="sgTitleInput"' not in html
+          assert 'id="sgMasterInput"' not in html
+          assert "xlsx.full.min.js" in html
+          PY
