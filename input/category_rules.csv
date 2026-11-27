@@ -1,35 +1,42 @@
 category,rule_type,value,match_mode,memo
 
-eyeshadow,Allow,アイシャドウ,contains
-eyeshadow,Allow,アイカラー,contains
-eyeshadow,Allow,アイカラーパレット,contains
-eyeshadow,Allow,eyeshadow,contains
-eyeshadow,Allow,eye shadow,contains
-eyeshadow,Allow,eye colour,contains
-eyeshadow,Allow,eye color palette,contains
-eyeshadow,Allow,プティパレットアイズ,contains
-eyeshadow,Allow,シルキースフレアイズ,contains
-eyeshadow,Allow,パーフェクトスタイリストアイズ,contains
-eyeshadow,Allow,ジュエリーシャドウベール,contains
-eyeshadow,Allow,アイカラーマジシャン,contains
-eyeshadow,Allow,シティライトアイズ,contains
-eyeshadow,Allow,ジューシーピュアアイズ,contains
-eyeshadow,Allow,ラメマニア,contains
-eyeshadow,Allow,プランぷくコーデアイズ,contains
-eyeshadow,Deny,アイシャドウベース,contains
-eyeshadow,Deny,アイベース,contains
-eyeshadow,Deny,アイプライマー,contains
-eyeshadow,Deny,eye primer,contains
-eyeshadow,Deny,eyeshadow primer,contains
-eyeshadow,Deny,アイブロウ,contains
-eyeshadow,Deny,eyebrow,contains
-eyeshadow,Deny,ノーズシャドウ,contains
-eyeshadow,Deny,シェーディング,contains
-eyeshadow,Deny,コンシーラー,contains
-eyeshadow,Deny,アイライナー,contains
-eyeshadow,Deny,eyeliner,contains
-eyeshadow,Deny,パレットケース,contains
-eyeshadow,Deny,空パレット,contains
-eyeshadow,Deny,レフィルケース,contains
-eyeshadow,Deny,チップのみ,contains
-eyeshadow,Deny,ブラシのみ,contains
+eyeliner,Allow,アイライナー,contains
+eyeliner,Allow,アイラインペンシル,contains
+eyeliner,Allow,アイライナーペンシル,contains
+eyeliner,Allow,eyeliner,contains
+eyeliner,Allow,eye liner,contains
+eyeliner,Allow,クリーミータッチライナー,contains
+eyeliner,Allow,エアリーエクステンションライナー,contains
+eyeliner,Allow,3wayスリムシェードライナー,contains
+eyeliner,Allow,ラスティングリキッドライナー,contains
+eyeliner,Allow,スリムリキッドアイライナー,contains
+eyeliner,Allow,3wayスリムアイルージュライナー,contains
+eyeliner,Allow,ミューテッドチュールライナー,contains
+eyeliner,Allow,トキメキトゥインクルアイライナー,contains
+eyeliner,Allow,ロマンティックニュアンスアイライナー,contains
+eyeliner,Allow,ジェルアイライナー,contains
+eyeliner,Allow,リキッドアイライナー,contains
+eyeliner,Allow,ペンシルアイライナー,contains
+eyeliner,Allow,ジェルライナー,contains
+eyeliner,Deny,アイシャドウ,contains
+eyeliner,Deny,eyeshadow,contains
+eyeliner,Deny,eye shadow,contains
+eyeliner,Deny,影用ライナー,contains
+eyeliner,Deny,アイブロウ,contains
+eyeliner,Deny,eyebrow,contains
+eyeliner,Deny,マスカラ,contains
+eyeliner,Deny,mascara,contains
+eyeliner,Deny,リップライナー,contains
+eyeliner,Deny,リップトリックライナー,contains
+eyeliner,Deny,lip liner,contains
+eyeliner,Deny,リップペンシル,contains
+eyeliner,Deny,アイライナーブラシ,contains
+eyeliner,Deny,アイライナーケース,contains
+eyeliner,Deny,アイライナー替芯,contains
+eyeliner,Deny,アイライナーリフィル,contains
+eyeliner,Deny,アイライナーレフィル,contains
+eyeliner,Deny,空容器,contains
+eyeliner,Deny,交換用,contains
+eyeliner,Deny,詰め替え用,contains
+eyeliner,Deny,ブラシのみ,contains
+eyeliner,Deny,ケースのみ,contains
