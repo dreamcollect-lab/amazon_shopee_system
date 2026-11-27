@@ -1,42 +1,48 @@
 category,rule_type,value,match_mode,memo
 
-eyeliner,Allow,アイライナー,contains
-eyeliner,Allow,アイラインペンシル,contains
-eyeliner,Allow,アイライナーペンシル,contains
-eyeliner,Allow,eyeliner,contains
-eyeliner,Allow,eye liner,contains
-eyeliner,Allow,クリーミータッチライナー,contains
-eyeliner,Allow,エアリーエクステンションライナー,contains
-eyeliner,Allow,3wayスリムシェードライナー,contains
-eyeliner,Allow,ラスティングリキッドライナー,contains
-eyeliner,Allow,スリムリキッドアイライナー,contains
-eyeliner,Allow,3wayスリムアイルージュライナー,contains
-eyeliner,Allow,ミューテッドチュールライナー,contains
-eyeliner,Allow,トキメキトゥインクルアイライナー,contains
-eyeliner,Allow,ロマンティックニュアンスアイライナー,contains
-eyeliner,Allow,ジェルアイライナー,contains
-eyeliner,Allow,リキッドアイライナー,contains
-eyeliner,Allow,ペンシルアイライナー,contains
-eyeliner,Allow,ジェルライナー,contains
-eyeliner,Deny,アイシャドウ,contains
-eyeliner,Deny,eyeshadow,contains
-eyeliner,Deny,eye shadow,contains
-eyeliner,Deny,影用ライナー,contains
-eyeliner,Deny,アイブロウ,contains
-eyeliner,Deny,eyebrow,contains
-eyeliner,Deny,マスカラ,contains
-eyeliner,Deny,mascara,contains
-eyeliner,Deny,リップライナー,contains
-eyeliner,Deny,リップトリックライナー,contains
-eyeliner,Deny,lip liner,contains
-eyeliner,Deny,リップペンシル,contains
-eyeliner,Deny,アイライナーブラシ,contains
-eyeliner,Deny,アイライナーケース,contains
-eyeliner,Deny,アイライナー替芯,contains
-eyeliner,Deny,アイライナーリフィル,contains
-eyeliner,Deny,アイライナーレフィル,contains
-eyeliner,Deny,空容器,contains
-eyeliner,Deny,交換用,contains
-eyeliner,Deny,詰め替え用,contains
-eyeliner,Deny,ブラシのみ,contains
-eyeliner,Deny,ケースのみ,contains
+blush,Allow,チーク,contains
+blush,Allow,blush,contains
+blush,Allow,blusher,contains
+blush,Allow,グロウフルールチークス,contains
+blush,Allow,パウダーチークス,contains
+blush,Allow,クリームチーク,contains
+blush,Allow,グラデーションチークス,contains
+blush,Allow,ジューシーレディリキッドチーク,contains
+blush,Allow,リキッドチーク,contains
+blush,Allow,ジェルチーク,contains
+blush,Allow,クッションチーク,contains
+blush,Allow,cheek color,contains
+blush,Allow,cheek colour,contains
+blush,Allow,cheek tint,contains
+blush,Deny,チークブラシ,contains
+blush,Deny,blush brush,contains
+blush,Deny,cheek brush,contains
+blush,Deny,ブラシのみ,contains
+blush,Deny,パフのみ,contains
+blush,Deny,スポンジのみ,contains
+blush,Deny,チークケース,contains
+blush,Deny,空ケース,contains
+blush,Deny,ケースのみ,contains
+blush,Deny,交換用ケース,contains
+blush,Deny,リフィル,contains
+blush,Deny,レフィル,contains
+blush,Deny,詰め替え,contains
+blush,Deny,交換用,contains
+blush,Deny,リップ＆チーク,contains
+blush,Deny,リップ&チーク,contains
+blush,Deny,リップアンドチーク,contains
+blush,Deny,lip and cheek,contains
+blush,Deny,lip & cheek,contains
+blush,Deny,lip&cheek,contains
+blush,Deny,アイシャドウ,contains
+blush,Deny,eyeshadow,contains
+blush,Deny,アイライナー,contains
+blush,Deny,eyeliner,contains
+blush,Deny,アイブロウ,contains
+blush,Deny,eyebrow,contains
+blush,Deny,マスカラ,contains
+blush,Deny,mascara,contains
+blush,Deny,ファンデーション,contains
+blush,Deny,foundation,contains
+blush,Deny,コンシーラー,contains
+blush,Deny,concealer,contains
