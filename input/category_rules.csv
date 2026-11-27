@@ -1,35 +1,35 @@
 category,rule_type,value,match_mode,memo
 
-eyeshadow,Allow,contains,アイシャドウ
-eyeshadow,Allow,contains,アイカラー
-eyeshadow,Allow,contains,アイカラーパレット
-eyeshadow,Allow,contains,eyeshadow
-eyeshadow,Allow,contains,eye shadow
-eyeshadow,Allow,contains,eye colour
-eyeshadow,Allow,contains,eye color palette
-eyeshadow,Allow,contains,プティパレットアイズ
-eyeshadow,Allow,contains,シルキースフレアイズ
-eyeshadow,Allow,contains,パーフェクトスタイリストアイズ
-eyeshadow,Allow,contains,ジュエリーシャドウベール
-eyeshadow,Allow,contains,アイカラーマジシャン
-eyeshadow,Allow,contains,シティライトアイズ
-eyeshadow,Allow,contains,ジューシーピュアアイズ
-eyeshadow,Allow,contains,ラメマニア
-eyeshadow,Allow,contains,プランぷくコーデアイズ
-eyeshadow,Deny,contains,アイシャドウベース
-eyeshadow,Deny,contains,アイベース
-eyeshadow,Deny,contains,アイプライマー
-eyeshadow,Deny,contains,eye primer
-eyeshadow,Deny,contains,eyeshadow primer
-eyeshadow,Deny,contains,アイブロウ
-eyeshadow,Deny,contains,eyebrow
-eyeshadow,Deny,contains,ノーズシャドウ
-eyeshadow,Deny,contains,シェーディング
-eyeshadow,Deny,contains,コンシーラー
-eyeshadow,Deny,contains,アイライナー
-eyeshadow,Deny,contains,eyeliner
-eyeshadow,Deny,contains,パレットケース
-eyeshadow,Deny,contains,空パレット
-eyeshadow,Deny,contains,レフィルケース
-eyeshadow,Deny,contains,チップのみ
-eyeshadow,Deny,contains,ブラシのみ
+eyeshadow,Allow,アイシャドウ,contains
+eyeshadow,Allow,アイカラー,contains
+eyeshadow,Allow,アイカラーパレット,contains
+eyeshadow,Allow,eyeshadow,contains
+eyeshadow,Allow,eye shadow,contains
+eyeshadow,Allow,eye colour,contains
+eyeshadow,Allow,eye color palette,contains
+eyeshadow,Allow,プティパレットアイズ,contains
+eyeshadow,Allow,シルキースフレアイズ,contains
+eyeshadow,Allow,パーフェクトスタイリストアイズ,contains
+eyeshadow,Allow,ジュエリーシャドウベール,contains
+eyeshadow,Allow,アイカラーマジシャン,contains
+eyeshadow,Allow,シティライトアイズ,contains
+eyeshadow,Allow,ジューシーピュアアイズ,contains
+eyeshadow,Allow,ラメマニア,contains
+eyeshadow,Allow,プランぷくコーデアイズ,contains
+eyeshadow,Deny,アイシャドウベース,contains
+eyeshadow,Deny,アイベース,contains
+eyeshadow,Deny,アイプライマー,contains
+eyeshadow,Deny,eye primer,contains
+eyeshadow,Deny,eyeshadow primer,contains
+eyeshadow,Deny,アイブロウ,contains
+eyeshadow,Deny,eyebrow,contains
+eyeshadow,Deny,ノーズシャドウ,contains
+eyeshadow,Deny,シェーディング,contains
+eyeshadow,Deny,コンシーラー,contains
+eyeshadow,Deny,アイライナー,contains
+eyeshadow,Deny,eyeliner,contains
+eyeshadow,Deny,パレットケース,contains
+eyeshadow,Deny,空パレット,contains
+eyeshadow,Deny,レフィルケース,contains
+eyeshadow,Deny,チップのみ,contains
+eyeshadow,Deny,ブラシのみ,contains
